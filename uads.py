@@ -7,9 +7,9 @@ import net_classes
 
 
 class UAMPClient:
-    def __init__(self):
-        self.remote_addr = None  # Assigned by UAMPGame()
-        self.remote_port = None  # Assigned by UAMPGame()
+    def __init__(self, remote_addr=None, remote_port=None):
+        self.remote_addr = remote_addr
+        self.remote_port = remote_port
         self.packet_sequence = 0  # The last packet number that we sent to the client
         self.last_ping_time = 0  # The time.time() when we last sent a ping to this client
         self.last_packet_time = 0  # The time.time() when we last received a packet from this client
@@ -54,12 +54,18 @@ class UAMPClient:
 
 
 class UAMPGame:
-    def __init__(self):
+    def __init__(self, sock):
+        self.socket = sock
         self.game_id = uuid.uuid4().fields[5]
         self.game_level_id = 93
         self.game_started = False
         self.game_start_time = 0
         self.players = {}
+
+    def __iter__(self):
+        # This lets us do cool stuff like `if player in game`
+        for player in self.players.keys():
+            yield player
 
     @property
     def time_stamp(self):
@@ -76,6 +82,10 @@ class UAMPGame:
         # Update self.players
         # For each player, send ???
         raise NotImplemented
+
+    def add_player(self, player):
+        remote_addr, remote_port = player
+        self.players[player] = UAMPClient(remote_addr=remote_addr, remote_port=remote_port)
 
     def change_level(self, level_id):
         self.game_level_id = level_id
@@ -97,12 +107,15 @@ class UAMPGame:
             player.send_packet(msg)
         raise NotImplemented
 
-    def packet_received(self, packet):
+    def packet_received(self, packet, player_addr_port):
         # The dedicated server received a packet and determined that it was related to this UAMPGame
         # Most of the UAMPGame logic will go here
         # For example, we might get a player connect message, then we will call self.player_join()
         # Or the game might already be started and we will need to send the incoming packet to all of the other players
-        raise NotImplemented
+        # Inspect the data and send the appropriate response(s)
+        for response in net_classes.respond(packet):
+            print("Responding with {}".format(response))
+            self.socket.sendto(response.data, player_addr_port)
 
     def is_full(self):
         # Can we add in more players to this game?
@@ -115,28 +128,48 @@ class UAMPGame:
         return len(self.players.keys()) >= 4
 
 
-client_sockets = {}
+def switch_packet(packet, player, games):
+    for game in games:  # Can be optimized later
+        if player in game:
+            # print("Found game that player is in")
+            game.packet_received(packet, player)
+            return  # Packet was sent to the correct game so let's get more packets
 
-# Server code
-dedicated_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-dedicated_server_socket.setblocking(False)
-dedicated_server_socket.bind(("127.0.0.1", 61234))
-while True:
-    try:
-        time.sleep(0.001)  # sleep 1 ms
-        # Receive data from players
-        data, cli_address = dedicated_server_socket.recvfrom(1024)
+    # Ok so the packet came from a player who wasn't in a game, is it a join request packet?
+    if isinstance(packet, net_classes.NetSysHandshake):
+        for game in games:
+            if not game.is_full():
+                # print("Adding player to game")
+                game.add_player(player)
+                game.packet_received(packet, player)
+                return
 
-        # Check if this is a new players or not
-        if cli_address not in client_sockets:
-            # Got a new player to keep track of
-            print("New player on port {}".format(cli_address))
-            client_sockets[cli_address] = True
+    # Either we got an invalid packet from someone who got dropped from the game or
+    # someone is messing with us.
+    # Or we restarted the dedicated server while games were running.
+    raise RuntimeError("How did you end up here?")
 
-        # Inspect the data and send the appropriate response(s)
-        cls = net_classes.data_to_class(data)
-        for response in net_classes.respond(cls):
-            print("Responding with {}".format(response))
-            dedicated_server_socket.sendto(response.data, cli_address)
-    except BlockingIOError:
-        pass
+
+def main():
+    # Server code
+    dedicated_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    dedicated_server_socket.setblocking(False)
+    dedicated_server_socket.bind(("127.0.0.1", 61234))
+
+    games = [UAMPGame(sock=dedicated_server_socket)]  # Start the server with one game
+
+    while True:
+        try:
+            time.sleep(0.001)  # sleep 1 ms
+            # Receive data from players
+            data, player = dedicated_server_socket.recvfrom(1024)  # player is a tuple (remote_addr, remote_port)
+            # Convert the raw data to an object
+            packet = net_classes.data_to_class(data)
+
+            switch_packet(packet, player, games)
+        except BlockingIOError:
+            pass
+
+
+if __name__ == "__main__":
+    main()
