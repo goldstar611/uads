@@ -116,6 +116,10 @@ class UAMPGame:
         # For example, we might get a player connect message, then we will call self.player_join()
         # Or the game might already be started and we will need to send the incoming packet to all of the other players
         # Inspect the data and send the appropriate response(s)
+
+        if isinstance(packet, net_classes.UAMessageMessage):
+            print("New message: {}".format(packet.message))
+
         for response in net_classes.respond(packet):
             print("Responding with {}".format(response))
             self.socket.sendto(response.data, player_addr_port)
