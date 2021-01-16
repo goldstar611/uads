@@ -7,7 +7,8 @@ import net_classes
 
 
 class UAMPClient:
-    def __init__(self, remote_addr=None, remote_port=None):
+    def __init__(self, sock, remote_addr=None, remote_port=None):
+        self.socket = sock
         self.remote_addr = remote_addr
         self.remote_port = remote_port
         self.packet_sequence = 0  # The last packet number that we sent to the client
@@ -35,8 +36,10 @@ class UAMPClient:
             return True
         return False
 
-    def send_pint(self):
-        raise NotImplemented
+    def send_ping(self, time_stamp):
+        ping = net_classes.UAMessageRequestPing(my_timestamp=time_stamp)
+        ping.packet_to = self.player_id
+        self.send_packet(ping)
 
     def next_pkt_seq(self):
         self.packet_sequence += 1
@@ -50,7 +53,7 @@ class UAMPClient:
 
     def send_packet(self, packet):
         # We need to send something to this client
-        raise NotImplemented
+        self.socket.sendto(packet.data, (self.remote_addr, self.remote_port))
 
 
 class UAMPGame:
@@ -85,7 +88,7 @@ class UAMPGame:
 
     def add_player(self, player):
         remote_addr, remote_port = player
-        self.players[player] = UAMPClient(remote_addr=remote_addr, remote_port=remote_port)
+        self.players[player] = UAMPClient(sock=self.socket, remote_addr=remote_addr, remote_port=remote_port)
 
     def change_level(self, level_id):
         self.game_level_id = level_id
