@@ -37,7 +37,7 @@ def inspect(prefix, cli_address, data, from_server=False):
             return
 
         if system_message == SYS_MSG_CONNECTED:
-            cls = NetSysConnected(data)
+            cls = NetSysConnected(client_id=None, client_name=None, data=data)
             print("SYS_MSG_CONNECTED: Client join\n")
             return
 
@@ -57,7 +57,7 @@ def inspect(prefix, cli_address, data, from_server=False):
             return
 
         if system_message == SYS_MSG_SES_JOIN:
-            cls = NetSysSessionJoin(data)
+            cls = NetSysSessionJoin(game_id=None, hoster_name=None, level_id=None, data=data)
             print("SYS_MSG_SES_JOIN: Level Select Message\n")
             return
 
@@ -130,7 +130,7 @@ def inspect(prefix, cli_address, data, from_server=False):
             return
     
         if ua_message == UAMSG_SYNCGM:
-            cls = UAMessageSyncGame(data=data)
+            cls = UAMessageSyncGame(game_id=None, hoster_id=None, data=data)
             print("UAMSG_SYNCGM: {}\n".format(cls))
             return
 

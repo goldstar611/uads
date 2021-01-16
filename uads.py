@@ -4,18 +4,20 @@ import hashlib
 import uuid
 
 import net_classes
+import net_messages
 
 
 class UAMPClient:
-    def __init__(self, sock, remote_addr=None, remote_port=None):
+    def __init__(self, sock, game_id, player_name, remote_addr, remote_port):
         self.socket = sock
         self.remote_addr = remote_addr
         self.remote_port = remote_port
         self.packet_sequence = 0  # The last packet number that we sent to the client
         self.last_ping_time = 0  # The time.time() when we last sent a ping to this client
         self.last_packet_time = 0  # The time.time() when we last received a packet from this client
+        self.game_id = game_id
 
-        self.player_name = "Unnamed"
+        self.player_name = player_name
         self.faction = None  # This should be an enum
         self.crc = None  # The reported checksum of game files on disk
         self.ready = None  # If the player is ready or not
@@ -24,21 +26,29 @@ class UAMPClient:
     @property
     def player_id(self):
         # This is not globally unique across all UAMPGames() so to find a player use remote_addr and remote_port
-        return hashlib.blake2s(self.player_name.encode(), digest_size=8).hexdigest()
+        return int(hashlib.blake2s(self.player_name.encode(), digest_size=8).hexdigest(), 16)
 
-    def needs_ping(self):
-        if time.time() - self.last_ping_time > 5:
+    def should_ping(self):
+        if int(time.time()) - self.last_ping_time > 5:
             return True
         return False
 
     def should_kick_player(self):
-        if time.time() - self.last_packet_time > 10:
+        if int(time.time()) - self.last_packet_time > 10:
             return True
         return False
 
-    def send_ping(self, time_stamp):
-        ping = net_classes.UAMessageRequestPing(my_timestamp=time_stamp)
-        ping.packet_to = self.player_id
+    def send_ping(self, game_started, time_stamp):
+        self.last_ping_time = int(time.time())
+        if game_started:
+            print("Sending UAMessageRequestPing")
+            ping = net_classes.UAMessageRequestPing(game_id=self.game_id,
+                                                    hoster_id=self.game_id,
+                                                    my_timestamp=time_stamp)
+            ping.packet_to = self.player_id
+        else:
+            print("Sending NetSysPing")
+            ping = net_classes.NetSysPing(sequence_id=self.packet_sequence)
         self.send_packet(ping)
 
     def next_pkt_seq(self):
@@ -46,14 +56,15 @@ class UAMPClient:
         return self.packet_sequence
 
     def inspect_packet(self, packet):
-        self.last_packet_time = time.time()
+        self.last_packet_time = int(time.time())
         # Inspect the packet so we can update any instance variables
         # We might want to keep track of such as last_packet_time
-        raise NotImplemented
+        pass  # TODO FIX ME
 
     def send_packet(self, packet):
         # We need to send something to this client
         self.socket.sendto(packet.data, (self.remote_addr, self.remote_port))
+        pass
 
 
 class UAMPGame:
@@ -73,7 +84,7 @@ class UAMPGame:
     @property
     def time_stamp(self):
         if self.game_started:
-            return time.time() - self.game_start_time
+            return int(time.time()) - self.game_start_time
         return 0
 
     def player_join(self, client):
@@ -86,9 +97,27 @@ class UAMPGame:
         # For each player, send ???
         raise NotImplemented
 
-    def add_player(self, player):
-        remote_addr, remote_port = player
-        self.players[player] = UAMPClient(sock=self.socket, remote_addr=remote_addr, remote_port=remote_port)
+    def add_player(self, player_name, player_addr_port):
+        remote_addr, remote_port = player_addr_port
+        player = UAMPClient(sock=self.socket, game_id=self.game_id, player_name=player_name,
+                            remote_addr=remote_addr, remote_port=remote_port)
+        self.players[player_addr_port] = player
+
+        player.send_packet(net_classes.NetSysConnected(client_name=player.player_name,
+                                                       client_id=player.player_id))
+        player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
+                                                         level_id=self.game_level_id,
+                                                         hoster_name="uads"))
+
+        for player in self.players.values():
+            players = {player.player_name: player.player_id for player in self.players.values()}
+            player.send_packet(net_classes.NetUsrSessionList(players))
+            player.send_packet(net_classes.UAMessageWelcome(game_id=self.game_id,
+                                                            hoster_id=self.game_id))
+            player.send_packet(net_classes.UAMessageCRC(game_id=self.game_id,
+                                                        hoster_id=self.game_id))
+            player.send_packet(net_classes.UAMessageCD(client_id=player.player_id,
+                                                       hoster_id=self.game_id))
 
     def change_level(self, level_id):
         self.game_level_id = level_id
@@ -98,17 +127,18 @@ class UAMPGame:
     def start_game(self):
         # For each player, send UAMessageLoadGame()
         self.game_started = True
-        self.game_start_time = time.time()
+        self.game_start_time = int(time.time())
 
         for player in self.players.values():
-            msg = net_classes.UAMessageLoadGame()
+            msg = net_classes.UAMessageLoadGame(game_id=self.game_id,
+                                                hoster_id=self.game_id,
+                                                level_id=self.game_level_id)
             msg.level_id = self.game_level_id
             msg.my_timestamp = self.time_stamp
             msg.packet_to = self.game_id
             # msg.packet_from = ????  # TODO FIXME
             msg.sequence_id = player.next_pkt_seq()
             player.send_packet(msg)
-        raise NotImplemented
 
     def packet_received(self, packet, player_addr_port):
         # The dedicated server received a packet and determined that it was related to this UAMPGame
@@ -116,13 +146,42 @@ class UAMPGame:
         # For example, we might get a player connect message, then we will call self.player_join()
         # Or the game might already be started and we will need to send the incoming packet to all of the other players
         # Inspect the data and send the appropriate response(s)
+        player = self.players[player_addr_port]  # type: UAMPClient
+        player.inspect_packet(packet)
+
+        if isinstance(packet, net_classes.NetSysDelivered) or isinstance(packet, net_classes.UAMessagePong):
+            return
+
+        if packet.packet_flags & net_messages.PKT_FLAG_GARANT:
+            player.send_packet(net_classes.NetSysDelivered(sequence_id=packet.sequence_id))
+
+        if player.should_ping():
+            player.send_ping(game_started=self.game_started,
+                             time_stamp=self.game_start_time)
 
         if isinstance(packet, net_classes.UAMessageMessage):
             print("New message: {}".format(packet.message))
+            if packet.message == "!start":
+                self.start_game()
+                return
 
-        for response in net_classes.respond(packet):
-            print("Responding with {}".format(response))
-            self.socket.sendto(response.data, player_addr_port)
+        if isinstance(packet, net_classes.Generic):
+            if packet.msg_type == "UAMSG_VHCLDATA_I":
+                return
+
+        if isinstance(packet, net_classes.NetSysDisconnected):
+            player.send_packet(net_classes.NetSysDisconnected())
+            self.players.pop(player_addr_port)
+            return
+
+        if isinstance(packet, net_classes.UAMessageRequestPing):
+            player.send_packet(net_classes.UAMessagePong(timestamp=packet.timestamp))
+            return
+
+        if packet.packet_type == net_messages.USR_MSG_DATA and packet.packet_cast:
+            for addr_port, p in self.players.items():
+                if addr_port != player_addr_port:
+                    p.send_packet(packet)
 
     def is_full(self):
         # Can we add in more players to this game?
@@ -147,7 +206,7 @@ def switch_packet(packet, player, games):
         for game in games:
             if not game.is_full():
                 # print("Adding player to game")
-                game.add_player(player)
+                game.add_player(packet.client_name, player)
                 game.packet_received(packet, player)
                 return
 
