@@ -459,6 +459,53 @@ class UAMessageLoadGame:
         self.level_id = struct.unpack_from("<I", value, 44)[0]
 
 
+class UAMessageMessage:
+    def __init__(self, message="", my_timestamp=0, data=None):
+        # data=b'02 02000000 01 10 57a58b042c000000 01 b820cc1129000000 50000000 fa030000 00000000 02000000 00 00 00 00 64000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+        self.packet_flags = net_messages.PKT_FLAG_GARANT
+        self.sequence_id = get_and_inc_seq()
+        self.channel = 1
+        self.packet_type = net_messages.USR_MSG_DATA
+
+        self.packet_from = hoster_id
+        self.packet_cast = 1
+        self.packet_to = game_id
+        self.packet_payload_length = 0x50
+        self.message_id = net_messages.UAMSG_MESSAGE
+        self.my_timestamp = my_timestamp
+        self.message_count = 0
+        self.owner = 0
+        self.p0 = 0x0
+        self.p1 = 0
+        self.p2 = 0
+
+        self.message = message
+        if data:
+            self.data = data
+
+    @property
+    def data(self):
+        msg = bytearray(64)
+        msg_len = min(len(self.message), 64)
+        msg[:msg_len] = self.message[:msg_len].encode()
+
+        ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
+        ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
+        ret += msg
+        return ret
+
+    @data.setter
+    def data(self, value):
+        self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
+        self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
+        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
+        self.message = value[44:].decode()
+        self.message = self.message[:self.message.index("\x00")]
+
+
 class UAMessageSyncGame:
     def __init__(self, my_timestamp=0, data=None):
         # data=b"02 0c000000 01 10 CCCCCCCCCCCCCCCC 01 BBBBBBBBBBBBBBBB 34000000 f7030000 00000000 00000000 01 62 00 00
@@ -777,7 +824,7 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_MESSAGE:  # When someone sends a message
             print("UAMSG_MESSAGE\n")
-            return Generic(msg_type="UAMSG_MESSAGE", data=data)  # TODO FIXME
+            return UAMessageMessage(data=data)
 
         if ua_message == net_messages.UAMSG_FRACTION:
             print("UAMSG_FRACTION\n")
