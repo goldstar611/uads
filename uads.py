@@ -251,7 +251,7 @@ def switch_packet(packet, player, games, sock):
     # Either we got an invalid packet from someone who got dropped from the game or
     # someone is messing with us.
     # Or we restarted the dedicated server while games were running.
-    raise RuntimeError("How did you end up here?")
+    print("Ignoring packet {} from {}".format(packet, player))
 
 
 def main():
