@@ -225,11 +225,11 @@ class UAMPGame:
         return len(self.players.keys()) >= 4
 
 
-def switch_packet(packet, player, games, sock):
+def switch_packet(packet, player_addr_port, games, sock):
     for game in games:  # Can be optimized later
-        if player in game:
+        if player_addr_port in game:
             # print("Found game that player is in")
-            game.packet_received(packet, player)
+            game.packet_received(packet, player_addr_port)
             return  # Packet was sent to the correct game so let's get more packets
 
     # Ok so the packet came from a player who wasn't in a game, is it a join request packet?
@@ -237,21 +237,21 @@ def switch_packet(packet, player, games, sock):
         for game in games:
             if not game.is_full():
                 # print("Adding player to game")
-                game.add_player(packet.client_name, player)
-                game.packet_received(packet, player)
+                game.add_player(packet.client_name, player_addr_port)
+                game.packet_received(packet, player_addr_port)
                 return
 
         print("Creating a new game")
         game = UAMPGame(sock=sock)
         games.append(game)
-        game.add_player(packet.client_name, player)
-        game.packet_received(packet, player)
+        game.add_player(packet.client_name, player_addr_port)
+        game.packet_received(packet, player_addr_port)
         return
 
     # Either we got an invalid packet from someone who got dropped from the game or
     # someone is messing with us.
     # Or we restarted the dedicated server while games were running.
-    print("Ignoring packet {} from {}".format(packet, player))
+    print("Ignoring packet {} from {}".format(packet, player_addr_port))
 
 
 def main():
@@ -272,11 +272,11 @@ def main():
         try:
             time.sleep(0.001)  # sleep 1 ms
             # Receive data from players
-            data, player = dedicated_server_socket.recvfrom(1024)  # player is a tuple (remote_addr, remote_port)
+            data, player_addr_port = dedicated_server_socket.recvfrom(1024)  # player is a tuple (remote_addr, remote_port)
             # Convert the raw data to an object
             packet = net_classes.data_to_class(data)
 
-            switch_packet(packet=packet, player=player, games=games, sock=dedicated_server_socket)
+            switch_packet(packet=packet, player_addr_port=player_addr_port, games=games, sock=dedicated_server_socket)
         except BlockingIOError:
             pass
 
