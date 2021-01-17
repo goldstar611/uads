@@ -202,7 +202,7 @@ class UAMPGame:
 
         if isinstance(packet, net_classes.Generic):
             if packet.msg_type == "UAMSG_VHCLDATA_I":
-                #return
+                # return
                 pass
 
         if isinstance(packet, net_classes.NetSysDisconnected):
@@ -272,7 +272,7 @@ def main():
         try:
             time.sleep(0.001)  # sleep 1 ms
             # Receive data from players
-            data, player_addr_port = dedicated_server_socket.recvfrom(1024)  # player is a tuple (remote_addr, remote_port)
+            data, player_addr_port = dedicated_server_socket.recvfrom(1024)
             # Convert the raw data to an object
             packet = net_classes.data_to_class(data)
 
