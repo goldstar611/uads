@@ -68,8 +68,9 @@ class UAMPClient:
         pass
 
     def send_message(self, message):
-        pkt = net_classes.UAMessageMessage(from_id=self.game_id,
-                                           to_id=self.player_id,
+        message = "> SERVER: " + message
+        pkt = net_classes.UAMessageMessage(from_id=self.player_id,
+                                           to_id=self.game_id,
                                            message=message)
         self.send_packet(pkt)
 
@@ -108,7 +109,7 @@ class UAMPGame:
         player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
 
-        disconnect_message =net_classes.NetUsrDisconnect(player_id=player.player_id)
+        disconnect_message = net_classes.NetUsrDisconnect(player_id=player.player_id)
         for player in self.players.values():
             player.send_packet(disconnect_message)
 
@@ -150,6 +151,7 @@ class UAMPGame:
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
                                                              hoster_name=player.player_name))
+            player.send_message(message="Changing level to id {}".format(game_level_id))
 
     def start_game(self):
         # For each player, send UAMessageLoadGame()
@@ -190,8 +192,12 @@ class UAMPGame:
             if packet.message == "!start":
                 self.start_game()
                 return
-            if packet.message == "!level":
-                self.change_level()
+            if packet.message.startswith("!level"):
+                try:
+                    level_number = int(packet.message[6:])
+                    self.change_level(level_number)
+                except ValueError:
+                    player.send_message("Couldn't change level to {}".format(packet.message[6:]))
                 return
 
         if isinstance(packet, net_classes.Generic):
