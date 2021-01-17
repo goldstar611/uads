@@ -206,7 +206,7 @@ class UAMPGame:
         return len(self.players.keys()) >= 4
 
 
-def switch_packet(packet, player, games):
+def switch_packet(packet, player, games, sock):
     for game in games:  # Can be optimized later
         if player in game:
             # print("Found game that player is in")
@@ -221,6 +221,13 @@ def switch_packet(packet, player, games):
                 game.add_player(packet.client_name, player)
                 game.packet_received(packet, player)
                 return
+
+        print("Creating a new game")
+        game = UAMPGame(sock=sock)
+        games.append(game)
+        game.add_player(packet.client_name, player)
+        game.packet_received(packet, player)
+        return
 
     # Either we got an invalid packet from someone who got dropped from the game or
     # someone is messing with us.
@@ -244,7 +251,7 @@ def main():
             # Convert the raw data to an object
             packet = net_classes.data_to_class(data)
 
-            switch_packet(packet, player, games)
+            switch_packet(packet=packet, player=player, games=games, sock=dedicated_server_socket)
         except BlockingIOError:
             pass
 
