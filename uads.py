@@ -258,7 +258,7 @@ def main():
     # Server code
     dedicated_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dedicated_server_socket.setblocking(False)
-    dedicated_server_socket.bind(("127.0.0.1", 61234))  # TODO FIX LISTENING PORT!
+    dedicated_server_socket.bind(("0.0.0.0", 61234))  # TODO FIX LISTENING PORT!
 
     games = [UAMPGame(sock=dedicated_server_socket)]  # Start the server with one game
 
