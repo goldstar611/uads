@@ -67,6 +67,12 @@ class UAMPClient:
         self.socket.sendto(packet.data, (self.remote_addr, self.remote_port))
         pass
 
+    def send_message(self, message):
+        pkt = net_classes.UAMessageMessage(from_id=self.game_id,
+                                           to_id=self.player_id,
+                                           message=message)
+        self.send_packet(pkt)
+
 
 class UAMPGame:
     def __init__(self, sock):
@@ -101,8 +107,10 @@ class UAMPGame:
     def kick_player(self, player):
         player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
-        # Send a player left message to everyone in this game
-        raise NotImplemented
+
+        disconnect_message =net_classes.NetUsrDisconnect(player_id=player.player_id)
+        for player in self.players.values():
+            player.send_packet(disconnect_message)
 
     def player_name_clean(self, player_name):
         temp_name = player_name
