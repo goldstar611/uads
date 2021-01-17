@@ -200,7 +200,7 @@ class UAMPGame:
 
         # If the game has started, don't accept any new players
         if self.game_started:
-            return False
+            return True
 
         # If we have 4 or more players, don't accept any new players
         return len(self.players.keys()) >= 4
