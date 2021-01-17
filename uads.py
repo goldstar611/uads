@@ -101,7 +101,7 @@ class UAMPGame:
         return len(self.players.keys()) == 0
 
     def check_game(self):
-        for player in self.players.values():
+        for player in self.players.copy().values():
             if player.should_kick_player():
                 self.kick_player(player)
 
