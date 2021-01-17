@@ -225,6 +225,32 @@ class NetUsrSessionList:
             self.users[user_name] = user_id
 
 
+class NetUsrDisconnect:
+    def __init__(self, player_id, data=None):
+        # data=b"00 0c000000 00 41 a08e5ddd0a030000 01"
+        self.packet_flags = net_messages.PKT_FLAG_NONE
+        self.sequence_id = 0
+        self.channel = 0
+        self.packet_type = net_messages.USR_MSG_SES_USERLEAVE
+
+        self.player_id = player_id
+        self.cast = 1
+        if data:
+            self.data = data
+
+    @property
+    def data(self):
+        ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
+        ret += struct.pack("<QB", self.player_id, self.cast)
+
+        return ret
+
+    @data.setter
+    def data(self, value):
+        self.packet_flags, self.sequence_id, self.channel, self.packet_type = struct.unpack_from("<BIBB", value, 0)
+        self.player_id, self.cast = struct.unpack_from("<QB", value, 7)
+
+
 class UAMessageWelcome:
     def __init__(self, to_id, from_id, data=None):
         # data = b"02 02000000 01 10 691ecc1129000000 00 57a58b042c000000 14000000 fe030000 00000000 3a59bba2 00 0f 00 00 0100 01 01"
