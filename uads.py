@@ -29,7 +29,7 @@ class UAMPClient:
         return int(hashlib.blake2s(self.player_name.encode(), digest_size=8).hexdigest(), 16)
 
     def should_ping(self):
-        if int(time.time()) - self.last_ping_time > 5:
+        if int(time.time()) - self.last_ping_time > 2:
             return True
         return False
 
@@ -46,9 +46,10 @@ class UAMPClient:
                                                     from_id=self.game_id,
                                                     my_timestamp=time_stamp)
             ping.packet_to = self.player_id
-        else:
-            print("Sending NetSysPing")
-            ping = net_classes.NetSysPing(sequence_id=self.packet_sequence)
+            self.send_packet(ping)
+
+        print("Sending NetSysPing")
+        ping = net_classes.NetSysPing(sequence_id=self.packet_sequence)
         self.send_packet(ping)
 
     def next_pkt_seq(self):
