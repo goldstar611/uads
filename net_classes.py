@@ -21,7 +21,7 @@ class Generic:
         self._data = value
 
         if len(value) > 36:
-            self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
+            self.packet_flags, self.sequence_id, self.channel, self.packet_type = struct.unpack_from("<BIBB", value, 0)
             self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
             self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
             self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
@@ -124,13 +124,13 @@ class NetSysDelivered(NetSysPing):
 
 
 class NetSysSessionJoin:
-    def __init__(self, game_id, level_id, hoster_name, data=None):
+    def __init__(self, game_id, level_number, hoster_name, data=None):
         # data=b"80 40 01 b820cc1129000000 20 93|Unnamed|JUL 09 1988  23:52:47"
         self.packet_flags = net_messages.PKT_FLAG_SYSTEM
         self.packet_type = net_messages.SYS_MSG_SES_JOIN
         self.always_one = 1
-        self.session_id = game_id
-        self.level_id = level_id
+        self.game_id = game_id
+        self.level_number = level_number
         self.server_name = hoster_name
         self.build_date = "JUL 09 1998  23:52:47"
         if data:
@@ -139,17 +139,17 @@ class NetSysSessionJoin:
     @property
     def data(self):
         ret = struct.pack("<BBB", self.packet_flags, self.packet_type, self.always_one)
-        id_server_name_build_date = "{}|{}|{}".format(self.level_id, self.server_name, self.build_date)
-        ret += struct.pack("<QB", self.session_id, len(id_server_name_build_date))
+        id_server_name_build_date = "{}|{}|{}".format(self.level_number, self.server_name, self.build_date)
+        ret += struct.pack("<QB", self.game_id, len(id_server_name_build_date))
         ret += id_server_name_build_date.encode()
         return ret
 
     @data.setter
     def data(self, value):
-        self.always_one, self.session_id, self.level_id = struct.unpack_from("<BBQ", value, 2)
+        self.always_one, self.game_id, self.level_number = struct.unpack_from("<BBQ", value, 2)
         id_server_name_build_date = value[12:].decode()
         level_id, self.server_name, self.build_date = id_server_name_build_date.split("|")
-        self.level_id = int(level_id)
+        self.level_number = int(level_id)
 
 
 class NetSysSessionClose:
@@ -226,16 +226,16 @@ class NetUsrSessionList:
 
 
 class UAMessageWelcome:
-    def __init__(self, game_id, hoster_id, data=None):
+    def __init__(self, to_id, from_id, data=None):
         # data = b"02 02000000 01 10 691ecc1129000000 00 57a58b042c000000 14000000 fe030000 00000000 3a59bba2 00 0f 00 00 0100 01 01"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = 0
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 0
-        self.packet_to = game_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_WELCOME
         self.my_timestamp = 0
@@ -270,16 +270,16 @@ class UAMessageWelcome:
 
 
 class UAMessageCRC:
-    def __init__(self, game_id, hoster_id, data=None):
+    def __init__(self, to_id, from_id, data=None):
         # data=b"02 02000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 0d040000 00000000 b0a187d5 00 55 00 00 2ab4c182"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = 0
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 0
-        self.packet_to = game_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_CRC
         self.my_timestamp = 0
@@ -312,16 +312,16 @@ class UAMessageCRC:
 
 
 class UAMessageCD:
-    def __init__(self, client_id, hoster_id, data=None):
+    def __init__(self, to_id, from_id, data=None):
         # data=b"02 02000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 12040000 00000000 a04b1000 00 61 00 00 01 ff 00 00"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = 0
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 0
-        self.packet_to = client_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_CD
         self.my_timestamp = 0
@@ -333,8 +333,8 @@ class UAMessageCD:
 
         self.cd = 1
         self.ready = 1
-        self.cd_p0 = 0
-        self.cd_p1 = 0
+        self.cd_p0 = 1
+        self.cd_p1 = 1
         if data:
             self.data = data
 
@@ -357,16 +357,16 @@ class UAMessageCD:
 
 
 class UAMessageFaction:
-    def __init__(self, client_id, hoster_id, data=None):
+    def __init__(self, to_id, from_id, data=None):
         # data=b"02 02000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 fd030000 00000000 20754s48 00 7f 00 00 0000 0200"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = 0
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 0
-        self.packet_to = client_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_FRACTION
         self.my_timestamp = 0
@@ -400,16 +400,16 @@ class UAMessageFaction:
 
 
 class UAMessageLoadGame:
-    def __init__(self, game_id, hoster_id, level_id, my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, level_number, my_timestamp=0, data=None):
         # data=b"02 06000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 e8030000 00000000 00640000 00 61 00 00 5d000000"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = 0
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 0
-        self.packet_to = game_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_LOAD
         self.my_timestamp = my_timestamp
@@ -419,7 +419,7 @@ class UAMessageLoadGame:
         self.p1 = 0
         self.p2 = 0
 
-        self.level_id = level_id
+        self.level_number = level_number
         if data:
             self.data = data
 
@@ -429,7 +429,7 @@ class UAMessageLoadGame:
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
         ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
-        ret += struct.pack("<I", self.level_id)
+        ret += struct.pack("<I", self.level_number)
         return ret
 
     @data.setter
@@ -438,20 +438,20 @@ class UAMessageLoadGame:
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
         self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
-        self.level_id = struct.unpack_from("<I", value, 44)[0]
+        self.level_number = struct.unpack_from("<I", value, 44)[0]
 
 
 class UAMessageMessage:
-    def __init__(self, game_id, hoster_id, message="", my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, message="", my_timestamp=0, data=None):
         # data=b'02 02000000 01 10 57a58b042c000000 01 b820cc1129000000 50000000 fa030000 00000000 02000000 00 00 00 00 64000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = 0
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 1
-        self.packet_to = game_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x50
         self.message_id = net_messages.UAMSG_MESSAGE
         self.my_timestamp = my_timestamp
@@ -489,7 +489,7 @@ class UAMessageMessage:
 
 
 class UAMessageSyncGame:
-    def __init__(self, game_id, hoster_id, my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, my_timestamp=0, data=None):
         # data=b"02 0c000000 01 10 CCCCCCCCCCCCCCCC 01 BBBBBBBBBBBBBBBB 34000000 f7030000 00000000 00000000 01 62 00 00
         #        00000101 04000101 03000101 02000101 01000101 ff0f0000 1b5392e8 6f7f0000 e009d1c9"
         #        host_id  gun0     gun1     gun2     gun3     gun4     gun5     gun6     gun7
@@ -498,9 +498,9 @@ class UAMessageSyncGame:
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 1
-        self.packet_to = game_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x34
         self.message_id = net_messages.UAMSG_SYNCGM
         self.my_timestamp = my_timestamp
@@ -554,7 +554,7 @@ class UAMessageSyncGame:
 
 
 class UAMessageViewer:
-    def __init__(self, game_id, hoster_id, my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, my_timestamp=0, data=None):
         # data=b"02 07000000 01 10 691ecc1129000000 01 b820cc1129000000
         #        1c000000 f6030000 00000000 0077450d 01 ce 3e 93 00000101 fd7f0000 03 01 da 15"
         #                                                        id       launcher
@@ -563,9 +563,9 @@ class UAMessageViewer:
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 1
-        self.packet_to = game_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x1c
         self.message_id = net_messages.UAMSG_VIEWER
         self.my_timestamp = my_timestamp
@@ -603,7 +603,7 @@ class UAMessageViewer:
 
 
 class UAMessageRequestPing:
-    def __init__(self, game_id, hoster_id, timestamp=0, my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, timestamp=0, my_timestamp=0, data=None):
         # data=b"02 07000000 01 10 691ecc1129000000 01 b820cc1129000000
         #        14000000 f6030000 00000000 0077450d 01 55 00 00 00000101"
         #                                                        timestamp
@@ -612,9 +612,9 @@ class UAMessageRequestPing:
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
-        self.packet_from = hoster_id
+        self.packet_from = from_id
         self.packet_cast = 1
-        self.packet_to = game_id
+        self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_REQPING
         self.my_timestamp = my_timestamp
@@ -647,8 +647,8 @@ class UAMessageRequestPing:
 
 
 class UAMessagePong(UAMessageRequestPing):
-    def __init__(self, game_id=0, hoster_id=0, timestamp=0, my_timestamp=0, data=None):
-        super(UAMessagePong, self).__init__(game_id=game_id, hoster_id=hoster_id,
+    def __init__(self, to_id=0, from_id=0, timestamp=0, my_timestamp=0, data=None):
+        super(UAMessagePong, self).__init__(to_id=to_id, from_id=from_id,
                                             timestamp=timestamp, my_timestamp=my_timestamp, data=data)
         self.message_id = net_messages.UAMSG_PONG
 
@@ -685,7 +685,7 @@ def data_to_class(data):
 
         if system_message == net_messages.SYS_MSG_SES_JOIN:
             print("SYS_MSG_SES_JOIN\n")
-            return NetSysSessionJoin(game_id=None, hoster_name=None, level_id=0, data=data)
+            return NetSysSessionJoin(game_id=None, hoster_name=None, level_number=0, data=data)
 
         if system_message == net_messages.SYS_MSG_SES_CLOSE:  # Host sends this message when it closes the server
             print("SYS_MSG_SES_CLOSE\n")
@@ -714,7 +714,7 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_LOAD:
             print("UAMSG_LOAD\n")
-            return UAMessageLoadGame(game_id=None, level_id=None, hoster_id=None, data=data)
+            return UAMessageLoadGame(to_id=None, level_number=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_NEWVHCL:
             print("UAMSG_NEWVHCL\n")
@@ -752,11 +752,11 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_VIEWER:
             print("UAMSG_VIEWER\n")
-            return UAMessageViewer(game_id=None, hoster_id=None, data=data)
+            return UAMessageViewer(to_id=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_SYNCGM:
             print("UAMSG_SYNCGM\n")
-            return UAMessageSyncGame(game_id=None, hoster_id=None, data=data)
+            return UAMessageSyncGame(to_id=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_HOSTDIE:
             print("UAMSG_HOSTDIE\n")
@@ -764,11 +764,11 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_MESSAGE:  # When someone sends a message
             print("UAMSG_MESSAGE\n")
-            return UAMessageMessage(game_id=None, hoster_id=None, data=data)
+            return UAMessageMessage(to_id=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_FRACTION:
             print("UAMSG_FRACTION\n")
-            return UAMessageFaction(client_id=None, hoster_id=None, data=data)
+            return UAMessageFaction(to_id=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_UPGRADE:
             print("UAMSG_UPGRADE\n")
@@ -776,7 +776,7 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_WELCOME:
             print("UAMSG_WELCOME\n")
-            return UAMessageWelcome(game_id=None, hoster_id=None, data=data)
+            return UAMessageWelcome(to_id=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_READY:
             print("UAMSG_READY\n")
@@ -824,7 +824,7 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_CRC:
             print("UAMSG_CRC\n")
-            return UAMessageCRC(game_id=None, hoster_id=None, data=data)
+            return UAMessageCRC(to_id=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_REQPING:
             print("UAMSG_REQPING\n")
@@ -836,7 +836,7 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_CD:
             print("UAMSG_CD\n")
-            return UAMessageCD(client_id=None, hoster_id=None, data=data)
+            return UAMessageCD(to_id=None, from_id=None, data=data)
 
         if ua_message == net_messages.UAMSG_SCORE:
             print("UAMSG_SCORE\n")

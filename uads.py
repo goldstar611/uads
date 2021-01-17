@@ -42,8 +42,8 @@ class UAMPClient:
         self.last_ping_time = int(time.time())
         if game_started:
             print("Sending UAMessageRequestPing")
-            ping = net_classes.UAMessageRequestPing(game_id=self.game_id,
-                                                    hoster_id=self.game_id,
+            ping = net_classes.UAMessageRequestPing(to_id=self.game_id,
+                                                    from_id=self.game_id,
                                                     my_timestamp=time_stamp)
             ping.packet_to = self.player_id
         else:
@@ -71,7 +71,7 @@ class UAMPGame:
     def __init__(self, sock):
         self.socket = sock
         self.game_id = uuid.uuid4().fields[5]
-        self.game_level_id = 93
+        self.level_number = 93
         self.game_started = False
         self.game_start_time = 0
         self.players = {}
@@ -106,23 +106,25 @@ class UAMPGame:
         player.send_packet(net_classes.NetSysConnected(client_name=player.player_name,
                                                        client_id=player.player_id))
         player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
-                                                         level_id=self.game_level_id,
-                                                         hoster_name="uads"))
+                                                         level_number=self.level_number,
+                                                         hoster_name=player.player_name))
 
         for player in self.players.values():
             players = {player.player_name: player.player_id for player in self.players.values()}
             player.send_packet(net_classes.NetUsrSessionList(players))
-            player.send_packet(net_classes.UAMessageWelcome(game_id=self.game_id,
-                                                            hoster_id=self.game_id))
-            player.send_packet(net_classes.UAMessageCRC(game_id=self.game_id,
-                                                        hoster_id=self.game_id))
-            player.send_packet(net_classes.UAMessageCD(client_id=player.player_id,
-                                                       hoster_id=self.game_id))
+            player.send_packet(net_classes.UAMessageWelcome(to_id=player.player_id,
+                                                            from_id=self.game_id))
+            player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
+                                                        from_id=self.game_id))
+            player.send_packet(net_classes.UAMessageCD(to_id=player.player_id,
+                                                       from_id=self.game_id))
 
-    def change_level(self, level_id):
-        self.game_level_id = level_id
-        # For each player, send NetSysSessionJoin()
-        raise NotImplemented
+    def change_level(self, game_level_id=88):
+        self.level_number = game_level_id
+        for player in self.players.values():
+            player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
+                                                             level_number=self.level_number,
+                                                             hoster_name=player.player_name))
 
     def start_game(self):
         # For each player, send UAMessageLoadGame()
@@ -130,13 +132,11 @@ class UAMPGame:
         self.game_start_time = int(time.time())
 
         for player in self.players.values():
-            msg = net_classes.UAMessageLoadGame(game_id=self.game_id,
-                                                hoster_id=self.game_id,
-                                                level_id=self.game_level_id)
-            msg.level_id = self.game_level_id
+            msg = net_classes.UAMessageLoadGame(to_id=player.player_id,
+                                                from_id=self.game_id,
+                                                level_number=self.level_number)
+            msg.level_number = self.level_number
             msg.my_timestamp = self.time_stamp
-            msg.packet_to = self.game_id
-            # msg.packet_from = ????  # TODO FIXME
             msg.sequence_id = player.next_pkt_seq()
             player.send_packet(msg)
 
@@ -163,6 +163,9 @@ class UAMPGame:
             print("New message: {}".format(packet.message))
             if packet.message == "!start":
                 self.start_game()
+                return
+            if packet.message == "!level":
+                self.change_level()
                 return
 
         if isinstance(packet, net_classes.Generic):
