@@ -181,7 +181,8 @@ class UAMPGame:
 
         if isinstance(packet, net_classes.Generic):
             if packet.msg_type == "UAMSG_VHCLDATA_I":
-                return
+                #return
+                pass
 
         if isinstance(packet, net_classes.NetSysDisconnected):
             player.send_packet(net_classes.NetSysDisconnected())
