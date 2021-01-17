@@ -160,7 +160,8 @@ class UAMPGame:
         player = self.players[player_addr_port]  # type: UAMPClient
         player.inspect_packet(packet)
 
-        if isinstance(packet, net_classes.NetSysDelivered) or isinstance(packet, net_classes.UAMessagePong):
+        if isinstance(packet, net_classes.NetSysPing):
+            player.send_packet(net_classes.NetSysDelivered(sequence_id=packet.sequence_id))
             return
 
         if packet.packet_flags & net_messages.PKT_FLAG_GARANT:
@@ -187,10 +188,6 @@ class UAMPGame:
         if isinstance(packet, net_classes.NetSysDisconnected):
             player.send_packet(net_classes.NetSysDisconnected())
             self.players.pop(player_addr_port)
-            return
-
-        if isinstance(packet, net_classes.UAMessageRequestPing):
-            player.send_packet(net_classes.UAMessagePong(timestamp=packet.timestamp))
             return
 
         if packet.packet_type == net_messages.USR_MSG_DATA and packet.packet_cast:
