@@ -98,9 +98,19 @@ class UAMPGame:
         # For each player, send ???
         raise NotImplemented
 
+    def player_name_clean(self, player_name):
+        temp_name = player_name
+        i = 0
+        current_player_names = [player.player_name for player in self.players.values()]
+        while temp_name in current_player_names:
+            i += 1
+            temp_name = "{}-{}".format(player_name, i)
+
+        return temp_name
+
     def add_player(self, player_name, player_addr_port):
         remote_addr, remote_port = player_addr_port
-        player = UAMPClient(sock=self.socket, game_id=self.game_id, player_name=player_name,
+        player = UAMPClient(sock=self.socket, game_id=self.game_id, player_name=self.player_name_clean(player_name),
                             remote_addr=remote_addr, remote_port=remote_port)
         self.players[player_addr_port] = player
 
