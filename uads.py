@@ -88,14 +88,20 @@ class UAMPGame:
             return int(time.time()) - self.game_start_time
         return 0
 
-    def player_join(self, client):
-        # Update self.players
-        # For each player, send UAMessageWelcome()
-        raise NotImplemented
+    @property
+    def game_finished(self):
+        # The game is finished when no one is connected :)
+        return len(self.players.keys()) == 0
 
-    def player_leave(self, client):
-        # Update self.players
-        # For each player, send ???
+    def check_game(self):
+        for player in self.players.values():
+            if player.should_kick_player():
+                self.kick_player(player)
+
+    def kick_player(self, player):
+        player.send_packet(net_classes.NetSysDisconnected())
+        self.players.pop((player.remote_addr, player.remote_port))
+        # Send a player left message to everyone in this game
         raise NotImplemented
 
     def player_name_clean(self, player_name):
@@ -118,7 +124,7 @@ class UAMPGame:
                                                        client_id=player.player_id))
         player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                          level_number=self.level_number,
-                                                         hoster_name=player.player_name))
+                                                         hoster_name="uads"))
 
         for player in self.players.values():
             players = {player.player_name: player.player_id for player in self.players.values()}
@@ -154,7 +160,7 @@ class UAMPGame:
     def packet_received(self, packet, player_addr_port):
         # The dedicated server received a packet and determined that it was related to this UAMPGame
         # Most of the UAMPGame logic will go here
-        # For example, we might get a player connect message, then we will call self.player_join()
+        # For example, we might get a player connect message, then we will call self.add_player()
         # Or the game might already be started and we will need to send the incoming packet to all of the other players
         # Inspect the data and send the appropriate response(s)
         player = self.players[player_addr_port]  # type: UAMPClient
@@ -186,8 +192,7 @@ class UAMPGame:
                 pass
 
         if isinstance(packet, net_classes.NetSysDisconnected):
-            player.send_packet(net_classes.NetSysDisconnected())
-            self.players.pop(player_addr_port)
+            self.kick_player(player)
             return
 
         if packet.packet_type == net_messages.USR_MSG_DATA and packet.packet_cast:
@@ -239,11 +244,17 @@ def main():
     # Server code
     dedicated_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dedicated_server_socket.setblocking(False)
-    dedicated_server_socket.bind(("127.0.0.1", 61234))
+    dedicated_server_socket.bind(("127.0.0.1", 61234))  # TODO FIX LISTENING PORT!
 
     games = [UAMPGame(sock=dedicated_server_socket)]  # Start the server with one game
 
     while True:
+        for game in games:  # Can be optimized later
+            game.check_game()
+            if game.game_finished:
+                games.remove(game)
+                continue
+
         try:
             time.sleep(0.001)  # sleep 1 ms
             # Receive data from players
