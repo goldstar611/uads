@@ -734,7 +734,7 @@ def data_to_class(data):
 
         if ua_message == net_messages.UAMSG_VHCLDATA_I:
             # send vehicle data updates such as location
-            print("UAMSG_VHCLDATA_I\n")
+            #print("UAMSG_VHCLDATA_I\n")
             return Generic(msg_type="UAMSG_VHCLDATA_I", data=data)  # TODO FIXME
 
         if ua_message == net_messages.UAMSG_DEAD:
@@ -841,6 +841,10 @@ def data_to_class(data):
         if ua_message == net_messages.UAMSG_SCORE:
             print("UAMSG_SCORE\n")
             return Generic(msg_type="UAMSG_SCORE", data=data)  # TODO FIXME
+
+        if ua_message == net_messages.UAMSG_BUILDINGVHCL:
+            print("UAMSG_BUILDINGVHCL\n")
+            return Generic(msg_type="UAMSG_BUILDINGVHCL", data=data)  # TODO FIXME
 
         raise ValueError("Unknown UA message! {}\n".format(ua_message))
 
