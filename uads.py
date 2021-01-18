@@ -61,7 +61,8 @@ class UAMPClient:
         self.last_packet_time = int(time.time())
         # Inspect the packet so we can update any instance variables
         # We might want to keep track of such as last_packet_time
-        pass  # TODO FIX ME
+        if isinstance(packet, net_classes.UAMessageFaction):
+            self.faction = packet.free
 
     def send_packet(self, packet):
         # We need to send something to this client
@@ -100,6 +101,10 @@ class UAMPGame:
     def game_finished(self):
         # The game is finished when no one is connected :)
         return len(self.players.keys()) == 0
+
+    @property
+    def max_players(self):
+        return 4  # TODO FIX ME
 
     def check_game(self):
         for player in self.players.copy().values():
@@ -155,8 +160,30 @@ class UAMPGame:
             player.send_message(message="Changing level to {} ({})".format(net_games.game_names[game_level_id],
                                                                            game_level_id))
 
+    def has_conflicts(self):
+        # Check for too many players in game for map
+        if len(self.players.values()) > self.max_players:
+            return True
+
+        # Check for players with same faction
+        factions_seen = {}
+        has_conflict = False
+        for player in self.players.values():
+            if player.faction not in factions_seen:
+                factions_seen[player.faction] = [player]
+            else:
+                has_conflict = True
+                factions_seen[player.faction].append(player)
+
+        return has_conflict
+
     def start_game(self):
         # For each player, send UAMessageLoadGame()
+        if self.has_conflicts():
+            for player in self.players.values():
+                player.send_message(message="Can't start game with conflicts!")
+            return
+
         self.game_started = True
         self.game_start_time = int(time.time())
 
@@ -225,8 +252,8 @@ class UAMPGame:
         if self.game_started:
             return True
 
-        # If we have 4 or more players, don't accept any new players
-        return len(self.players.keys()) >= 4
+        # If we have filled all player positions, don't accept any new players
+        return len(self.players.keys()) >= self.max_players
 
 
 def switch_packet(packet, player_addr_port, games, sock):
@@ -262,7 +289,7 @@ def main():
     # Server code
     dedicated_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dedicated_server_socket.setblocking(False)
-    dedicated_server_socket.bind(("0.0.0.0", 61234))  # TODO FIX LISTENING PORT!
+    dedicated_server_socket.bind(("0.0.0.0", 61234))
 
     games = [UAMPGame(sock=dedicated_server_socket)]  # Start the server with one game
 
