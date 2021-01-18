@@ -679,204 +679,211 @@ class UAMessagePong(UAMessageRequestPing):
         self.message_id = net_messages.UAMSG_PONG
 
 
+class DataToClassException(Exception):
+    pass
+
+
 def data_to_class(data):
-    # Every message has packet flags
-    flags = data[0]
+    try:
+        # Every message has packet flags
+        flags = data[0]
 
-    #
-    # System messages
-    #
-    if flags & net_messages.PKT_FLAG_MASK_SYSTEM:
-        system_message = data[1]
+        #
+        # System messages
+        #
+        if flags & net_messages.PKT_FLAG_MASK_SYSTEM:
+            system_message = data[1]
 
-        if system_message == net_messages.SYS_MSG_HANDSHAKE:
-            print("SYS_MSG_HANDSHAKE\n")
-            return NetSysHandshake(client_name=None, data=data)
+            if system_message == net_messages.SYS_MSG_HANDSHAKE:
+                print("SYS_MSG_HANDSHAKE\n")
+                return NetSysHandshake(client_name=None, data=data)
 
-        if system_message == net_messages.SYS_MSG_CONNECTED:
-            print("SYS_MSG_CONNECTED\n")
-            return NetSysConnected(client_id=None, client_name=None, data=data)
+            if system_message == net_messages.SYS_MSG_CONNECTED:
+                print("SYS_MSG_CONNECTED\n")
+                return NetSysConnected(client_id=None, client_name=None, data=data)
 
-        if system_message == net_messages.SYS_MSG_DISCONNECT:
-            print("SYS_MSG_DISCONNECT\n")
-            return NetSysDisconnected(data=data)
+            if system_message == net_messages.SYS_MSG_DISCONNECT:
+                print("SYS_MSG_DISCONNECT\n")
+                return NetSysDisconnected(data=data)
 
-        if system_message == net_messages.SYS_MSG_PING:
-            print("SYS_MSG_PING\n")
-            return NetSysPing(data=data)
+            if system_message == net_messages.SYS_MSG_PING:
+                print("SYS_MSG_PING\n")
+                return NetSysPing(data=data)
 
-        if system_message == net_messages.SYS_MSG_DELIVERED:
-            print("SYS_MSG_DELIVERED\n")
-            return NetSysDelivered(data=data)
+            if system_message == net_messages.SYS_MSG_DELIVERED:
+                print("SYS_MSG_DELIVERED\n")
+                return NetSysDelivered(data=data)
 
-        if system_message == net_messages.SYS_MSG_SES_JOIN:
-            print("SYS_MSG_SES_JOIN\n")
-            return NetSysSessionJoin(game_id=None, hoster_name=None, level_number=0, data=data)
+            if system_message == net_messages.SYS_MSG_SES_JOIN:
+                print("SYS_MSG_SES_JOIN\n")
+                return NetSysSessionJoin(game_id=None, hoster_name=None, level_number=0, data=data)
 
-        if system_message == net_messages.SYS_MSG_SES_CLOSE:  # Host sends this message when it closes the server
-            print("SYS_MSG_SES_CLOSE\n")
-            return NetSysSessionClose(data=data)
+            if system_message == net_messages.SYS_MSG_SES_CLOSE:  # Host sends this message when it closes the server
+                print("SYS_MSG_SES_CLOSE\n")
+                return NetSysSessionClose(data=data)
 
-        raise ValueError("Unknown system message!\n")
+            raise ValueError("Unknown system message!\n")
 
-    #
-    # User messages
-    #
-    sequence_id = data[1:5]
-    channel = data[5]
-    user_message = data[6]
+        #
+        # User messages
+        #
+        sequence_id = data[1:5]
+        channel = data[5]
+        user_message = data[6]
 
-    if user_message == net_messages.USR_MSG_SES_USERLIST:
-        print("USR_MSG_SES_USERLIST\n")
-        return NetUsrSessionList(users=None, data=data)
+        if user_message == net_messages.USR_MSG_SES_USERLIST:
+            print("USR_MSG_SES_USERLIST\n")
+            return NetUsrSessionList(users=None, data=data)
 
-    if user_message == net_messages.USR_MSG_DATA:
-        source = struct.unpack_from("<Q", data, 7)[0]
-        cast = struct.unpack_from("<B", data, 15)[0]
-        destination = struct.unpack_from("<Q", data, 16)[0]
-        data_size = struct.unpack_from("<I", data, 24)[0]
-        ua_message = struct.unpack_from("<I", data, 28)[0]
-        # print("usr msg src: {} cast: {}, dst: {}, data_size: {}".format(source, cast, destination, data_size))
+        if user_message == net_messages.USR_MSG_DATA:
+            source = struct.unpack_from("<Q", data, 7)[0]
+            cast = struct.unpack_from("<B", data, 15)[0]
+            destination = struct.unpack_from("<Q", data, 16)[0]
+            data_size = struct.unpack_from("<I", data, 24)[0]
+            ua_message = struct.unpack_from("<I", data, 28)[0]
+            # print("usr msg src: {} cast: {}, dst: {}, data_size: {}".format(source, cast, destination, data_size))
 
-        if ua_message == net_messages.UAMSG_LOAD:
-            print("UAMSG_LOAD\n")
-            return UAMessageLoadGame(to_id=None, level_number=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_LOAD:
+                print("UAMSG_LOAD\n")
+                return UAMessageLoadGame(to_id=None, level_number=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_NEWVHCL:
-            print("UAMSG_NEWVHCL\n")
-            return Generic(msg_type="UAMSG_NEWVHCL", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_NEWVHCL:
+                print("UAMSG_NEWVHCL\n")
+                return Generic(msg_type="UAMSG_NEWVHCL", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_DESTROYVHCL:
-            print("UAMSG_DESTROYVHCL\n")
-            return Generic(msg_type="UAMSG_DESTROYVHCL", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_DESTROYVHCL:
+                print("UAMSG_DESTROYVHCL\n")
+                return Generic(msg_type="UAMSG_DESTROYVHCL", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_NEWWEAPON:
-            print("UAMSG_NEWWEAPON\n")
-            return Generic(msg_type="UAMSG_NEWWEAPON", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_NEWWEAPON:
+                print("UAMSG_NEWWEAPON\n")
+                return Generic(msg_type="UAMSG_NEWWEAPON", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_SETSTATE:
-            print("UAMSG_SETSTATE\n")
-            return Generic(msg_type="UAMSG_SETSTATE", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_SETSTATE:
+                print("UAMSG_SETSTATE\n")
+                return Generic(msg_type="UAMSG_SETSTATE", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_VHCLDATA_I:
-            # send vehicle data updates such as location
-            #print("UAMSG_VHCLDATA_I\n")
-            return Generic(msg_type="UAMSG_VHCLDATA_I", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_VHCLDATA_I:
+                # send vehicle data updates such as location
+                #print("UAMSG_VHCLDATA_I\n")
+                return Generic(msg_type="UAMSG_VHCLDATA_I", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_DEAD:
-            print("UAMSG_DEAD\n")
-            return Generic(msg_type="UAMSG_DEAD", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_DEAD:
+                print("UAMSG_DEAD\n")
+                return Generic(msg_type="UAMSG_DEAD", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_VHCLENERGY:
-            print("UAMSG_VHCLENERGY\n")
-            return Generic(msg_type="UAMSG_VHCLENERGY", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_VHCLENERGY:
+                print("UAMSG_VHCLENERGY\n")
+                return Generic(msg_type="UAMSG_VHCLENERGY", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_SECTORENERGY:
-            # conquer sector
-            print("UAMSG_SECTORENERGY\n")
-            return Generic(msg_type="UAMSG_SECTORENERGY", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_SECTORENERGY:
+                # conquer sector
+                print("UAMSG_SECTORENERGY\n")
+                return Generic(msg_type="UAMSG_SECTORENERGY", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_STARTBUILD:
-            # conquer sector
-            print("UAMSG_STARTBUILD\n")
-            return Generic(msg_type="UAMSG_STARTBUILD", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_STARTBUILD:
+                # conquer sector
+                print("UAMSG_STARTBUILD\n")
+                return Generic(msg_type="UAMSG_STARTBUILD", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_VIEWER:
-            print("UAMSG_VIEWER\n")
-            return UAMessageViewer(to_id=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_VIEWER:
+                print("UAMSG_VIEWER\n")
+                return UAMessageViewer(to_id=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_SYNCGM:
-            print("UAMSG_SYNCGM\n")
-            return UAMessageSyncGame(to_id=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_SYNCGM:
+                print("UAMSG_SYNCGM\n")
+                return UAMessageSyncGame(to_id=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_HOSTDIE:
-            print("UAMSG_HOSTDIE\n")
-            return Generic(msg_type="UAMSG_HOSTDIE", data=data)
+            if ua_message == net_messages.UAMSG_HOSTDIE:
+                print("UAMSG_HOSTDIE\n")
+                return Generic(msg_type="UAMSG_HOSTDIE", data=data)
 
-        if ua_message == net_messages.UAMSG_MESSAGE:  # When someone sends a message
-            print("UAMSG_MESSAGE\n")
-            return UAMessageMessage(to_id=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_MESSAGE:  # When someone sends a message
+                print("UAMSG_MESSAGE\n")
+                return UAMessageMessage(to_id=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_FRACTION:
-            print("UAMSG_FRACTION\n")
-            return UAMessageFaction(to_id=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_FRACTION:
+                print("UAMSG_FRACTION\n")
+                return UAMessageFaction(to_id=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_UPGRADE:
-            print("UAMSG_UPGRADE\n")
-            return Generic(msg_type="UAMSG_UPGRADE", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_UPGRADE:
+                print("UAMSG_UPGRADE\n")
+                return Generic(msg_type="UAMSG_UPGRADE", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_WELCOME:
-            print("UAMSG_WELCOME\n")
-            return UAMessageWelcome(to_id=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_WELCOME:
+                print("UAMSG_WELCOME\n")
+                return UAMessageWelcome(to_id=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_READY:
-            print("UAMSG_READY\n")
-            return Generic(msg_type="UAMSG_READY", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_READY:
+                print("UAMSG_READY\n")
+                return Generic(msg_type="UAMSG_READY", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_REQUPDATE:
-            print("UAMSG_REQUPDATE\n")
-            return Generic(msg_type="UAMSG_REQUPDATE", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_REQUPDATE:
+                print("UAMSG_REQUPDATE\n")
+                return Generic(msg_type="UAMSG_REQUPDATE", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_UPDATE:
-            print("UAMSG_UPDATE\n")
-            return Generic(msg_type="UAMSG_UPDATE", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_UPDATE:
+                print("UAMSG_UPDATE\n")
+                return Generic(msg_type="UAMSG_UPDATE", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_IMPULSE:
-            print("UAMSG_IMPULSE\n")
-            return Generic(msg_type="UAMSG_IMPULSE", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_IMPULSE:
+                print("UAMSG_IMPULSE\n")
+                return Generic(msg_type="UAMSG_IMPULSE", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_LOGMSG:
-            print("UAMSG_LOGMSG\n")
-            return Generic(msg_type="UAMSG_LOGMSG", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_LOGMSG:
+                print("UAMSG_LOGMSG\n")
+                return Generic(msg_type="UAMSG_LOGMSG", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_REORDER:
-            print("UAMSG_REORDER\n")
-            return Generic(msg_type="UAMSG_REORDER", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_REORDER:
+                print("UAMSG_REORDER\n")
+                return Generic(msg_type="UAMSG_REORDER", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_STARTPLASMA:
-            print("UAMSG_STARTPLASMA\n")
-            return Generic(msg_type="UAMSG_STARTPLASMA", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_STARTPLASMA:
+                print("UAMSG_STARTPLASMA\n")
+                return Generic(msg_type="UAMSG_STARTPLASMA", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_ENDPLASMA:
-            print("UAMSG_ENDPLASMA\n")
-            return Generic(msg_type="UAMSG_ENDPLASMA", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_ENDPLASMA:
+                print("UAMSG_ENDPLASMA\n")
+                return Generic(msg_type="UAMSG_ENDPLASMA", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_STARTBEAM:
-            print("UAMSG_STARTBEAM\n")
-            return Generic(msg_type="UAMSG_STARTBEAM", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_STARTBEAM:
+                print("UAMSG_STARTBEAM\n")
+                return Generic(msg_type="UAMSG_STARTBEAM", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_ENDBEAM:
-            print("UAMSG_ENDBEAM\n")
-            return Generic(msg_type="UAMSG_ENDBEAM", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_ENDBEAM:
+                print("UAMSG_ENDBEAM\n")
+                return Generic(msg_type="UAMSG_ENDBEAM", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_EXIT:
-            print("UAMSG_EXIT\n")  # Ghorkovs have left the game
-            return Generic(msg_type="UAMSG_EXIT", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_EXIT:
+                print("UAMSG_EXIT\n")  # Ghorkovs have left the game
+                return Generic(msg_type="UAMSG_EXIT", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_CRC:
-            print("UAMSG_CRC\n")
-            return UAMessageCRC(to_id=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_CRC:
+                print("UAMSG_CRC\n")
+                return UAMessageCRC(to_id=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_REQPING:
-            print("UAMSG_REQPING\n")
-            return Generic(msg_type="UAMSG_REQPING", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_REQPING:
+                print("UAMSG_REQPING\n")
+                return Generic(msg_type="UAMSG_REQPING", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_PONG:
-            print("UAMSG_PONG\n")
-            return Generic(msg_type="UAMSG_PONG", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_PONG:
+                print("UAMSG_PONG\n")
+                return Generic(msg_type="UAMSG_PONG", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_CD:
-            print("UAMSG_CD\n")
-            return UAMessageCD(to_id=None, from_id=None, data=data)
+            if ua_message == net_messages.UAMSG_CD:
+                print("UAMSG_CD\n")
+                return UAMessageCD(to_id=None, from_id=None, data=data)
 
-        if ua_message == net_messages.UAMSG_SCORE:
-            print("UAMSG_SCORE\n")
-            return Generic(msg_type="UAMSG_SCORE", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_SCORE:
+                print("UAMSG_SCORE\n")
+                return Generic(msg_type="UAMSG_SCORE", data=data)  # TODO FIXME
 
-        if ua_message == net_messages.UAMSG_BUILDINGVHCL:
-            print("UAMSG_BUILDINGVHCL\n")
-            return Generic(msg_type="UAMSG_BUILDINGVHCL", data=data)  # TODO FIXME
+            if ua_message == net_messages.UAMSG_BUILDINGVHCL:
+                print("UAMSG_BUILDINGVHCL\n")
+                return Generic(msg_type="UAMSG_BUILDINGVHCL", data=data)  # TODO FIXME
 
-        raise ValueError("Unknown UA message! {}\n".format(ua_message))
+            raise ValueError("Unknown UA message! {}\n".format(ua_message))
 
-    raise ValueError("Unknown message! {}\n".format(data))
+        raise ValueError("Unknown message! {}\n".format(data))
+    except Exception:
+        raise DataToClassException()

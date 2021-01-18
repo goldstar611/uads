@@ -1,3 +1,4 @@
+import binascii
 import socket
 import time
 import hashlib
@@ -344,6 +345,9 @@ def main():
         except RestartServer:
             server_is_restarting = True
             server_restart_time = int(time.time()) + 5
+            pass
+        except net_classes.DataToClassException:
+            print("Error parsing packet with data:\n{}".format(binascii.hexlify(data)))
             pass
 
 
