@@ -320,7 +320,7 @@ def main():
                 games.remove(game)
                 continue
             if server_is_restarting:
-                if int(time.time()) - server_restart_msg_time > 1:
+                if int(time.time()) - server_restart_msg_time >= 1:
                     server_restart_msg_time = int(time.time())
                     game.message_all_players(message="Server is restarting in {} seconds".format(server_restart_time -
                                                                                                  int(time.time())))
