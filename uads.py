@@ -8,6 +8,10 @@ import net_games
 import net_messages
 
 
+class RestartServer(Exception):
+    pass
+
+
 class UAMPClient:
     def __init__(self, sock, game_id, player_name, remote_addr, remote_port):
         self.socket = sock
@@ -115,9 +119,13 @@ class UAMPGame:
         player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
 
-        disconnect_message = net_classes.NetUsrDisconnect(player_id=player.player_id)
+        player_left_message = net_classes.NetUsrDisconnect(player_id=player.player_id)
         for player in self.players.values():
-            player.send_packet(disconnect_message)
+            player.send_packet(player_left_message)
+
+    def kick_all_players(self):
+        for player in self.players.copy().values():
+            self.kick_player(player)
 
     def player_name_clean(self, player_name):
         temp_name = player_name
@@ -177,12 +185,16 @@ class UAMPGame:
 
         return has_conflict
 
+    def message_all_players(self, message):
+        for player in self.players.values():
+            player.send_message(message=message)
+        return
+
     def start_game(self):
         # For each player, send UAMessageLoadGame()
         if self.has_conflicts():
-            for player in self.players.values():
-                player.send_message(message="Can't start game with conflicts!")
-            return
+            self.message_all_players(message="Can't start game with conflicts!")
+            return False
 
         self.game_started = True
         self.game_start_time = int(time.time())
@@ -218,6 +230,9 @@ class UAMPGame:
 
         if isinstance(packet, net_classes.UAMessageMessage):
             print("New message: {}".format(packet.message))
+            if packet.message == "!restart":
+                raise RestartServer()
+
             if packet.message == "!start":
                 self.start_game()
                 return
@@ -291,6 +306,11 @@ def main():
     dedicated_server_socket.setblocking(False)
     dedicated_server_socket.bind(("0.0.0.0", 61234))
 
+    # Game restart variables
+    server_is_restarting = False
+    server_restart_time = 0
+    server_restart_msg_time = 0
+
     games = [UAMPGame(sock=dedicated_server_socket)]  # Start the server with one game
 
     while True:
@@ -299,6 +319,15 @@ def main():
             if game.game_finished:
                 games.remove(game)
                 continue
+            if server_is_restarting:
+                if int(time.time()) - server_restart_msg_time > 1:
+                    server_restart_msg_time = int(time.time())
+                    game.message_all_players(message="Server is restarting in {} seconds".format(server_restart_time -
+                                                                                                 int(time.time())))
+
+                if int(time.time()) > server_restart_time:
+                    game.kick_all_players()
+                    raise Exception("Time to restart the server")
 
         try:
             time.sleep(0.001)  # sleep 1 ms
@@ -309,6 +338,10 @@ def main():
 
             switch_packet(packet=packet, player_addr_port=player_addr_port, games=games, sock=dedicated_server_socket)
         except BlockingIOError:
+            pass
+        except RestartServer:
+            server_is_restarting = True
+            server_restart_time = int(time.time()) + 5
             pass
 
 
