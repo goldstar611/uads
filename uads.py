@@ -320,14 +320,14 @@ def main():
                 games.remove(game)
                 continue
             if server_is_restarting:
+                if int(time.time()) > server_restart_time:
+                    game.kick_all_players()
+                    raise Exception("Time to restart the server")
+
                 if int(time.time()) - server_restart_msg_time >= 1:
                     server_restart_msg_time = int(time.time())
                     game.message_all_players(message="Server is restarting in {} seconds".format(server_restart_time -
                                                                                                  int(time.time())))
-
-                if int(time.time()) > server_restart_time:
-                    game.kick_all_players()
-                    raise Exception("Time to restart the server")
 
         try:
             time.sleep(0.001)  # sleep 1 ms
