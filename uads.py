@@ -4,6 +4,7 @@ import hashlib
 import uuid
 
 import net_classes
+import net_games
 import net_messages
 
 
@@ -151,7 +152,8 @@ class UAMPGame:
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
                                                              hoster_name=player.player_name))
-            player.send_message(message="Changing level to id {}".format(game_level_id))
+            player.send_message(message="Changing level to {} ({})".format(net_games.game_names[game_level_id],
+                                                                           game_level_id))
 
     def start_game(self):
         # For each player, send UAMessageLoadGame()
@@ -195,6 +197,8 @@ class UAMPGame:
             if packet.message.startswith("!level"):
                 try:
                     level_number = int(packet.message[6:])
+                    if level_number not in net_games.game_names.keys():
+                        raise ValueError()
                     self.change_level(level_number)
                 except ValueError:
                     player.send_message("Couldn't change level to {}".format(packet.message[6:]))
