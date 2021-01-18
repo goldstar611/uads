@@ -38,7 +38,7 @@ class UAMPClient:
             return True
         return False
 
-    def should_kick_player(self):
+    def should_kick(self):
         if int(time.time()) - self.last_packet_time > 10:
             return True
         return False
@@ -75,6 +75,7 @@ class UAMPClient:
 
     def send_message(self, message):
         message = "> SERVER: " + message
+        print(message)
         pkt = net_classes.UAMessageMessage(from_id=self.player_id,
                                            to_id=self.game_id,
                                            message=message)
@@ -112,8 +113,9 @@ class UAMPGame:
 
     def check_game(self):
         for player in self.players.copy().values():
-            if player.should_kick_player():
+            if player.should_kick():
                 self.kick_player(player)
+                self.message_all_players("{} has been kicked from game".format(player.player_name))
 
     def kick_player(self, player):
         player.send_packet(net_classes.NetSysDisconnected())
