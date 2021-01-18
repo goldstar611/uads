@@ -402,8 +402,8 @@ class UAMessageFaction:
         self.p1 = 0
         self.p2 = 0
 
-        self.new = 0
-        self.free = 2
+        self.new = 1
+        self.free = 1
         if data:
             self.data = data
 
@@ -775,6 +775,11 @@ def data_to_class(data):
             # conquer sector
             print("UAMSG_SECTORENERGY\n")
             return Generic(msg_type="UAMSG_SECTORENERGY", data=data)  # TODO FIXME
+
+        if ua_message == net_messages.UAMSG_STARTBUILD:
+            # conquer sector
+            print("UAMSG_STARTBUILD\n")
+            return Generic(msg_type="UAMSG_STARTBUILD", data=data)  # TODO FIXME
 
         if ua_message == net_messages.UAMSG_VIEWER:
             print("UAMSG_VIEWER\n")
