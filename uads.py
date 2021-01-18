@@ -88,7 +88,7 @@ class UAMPGame:
         self.level_number = 93
         self.game_started = False
         self.game_start_time = 0
-        self.players = {}
+        self.players = {}  # type: dict[tuple, UAMPClient]
 
     def __iter__(self):
         # This lets us do cool stuff like `if player in game`
@@ -214,7 +214,7 @@ class UAMPGame:
         # For example, we might get a player connect message, then we will call self.add_player()
         # Or the game might already be started and we will need to send the incoming packet to all of the other players
         # Inspect the data and send the appropriate response(s)
-        player = self.players[player_addr_port]  # type: UAMPClient
+        player = self.players[player_addr_port]
         player.inspect_packet(packet)
 
         if isinstance(packet, net_classes.NetSysPing):
@@ -311,7 +311,7 @@ def main():
     server_restart_time = 0
     server_restart_msg_time = 0
 
-    games = [UAMPGame(sock=dedicated_server_socket)]  # Start the server with one game
+    games = [UAMPGame(sock=dedicated_server_socket)]  # type: list[UAMPGame]
 
     while True:
         for game in games:  # Can be optimized later
