@@ -1,3 +1,9 @@
+faction_names = {1: "Resistance",
+                 2: "Ghorkov",
+                 4: "Mykonian",
+                 8: "Taerkasten",
+                 }
+
 game_names = {100: "THE ARTIFICIAL",
               101: "FRIEDRICH II",
               102: "Two Sides",
