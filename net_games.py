@@ -5,6 +5,7 @@ faction_names = {1: "Resistance",
                  }
 
 game_names = {100: "THE ARTIFICIAL",
+              148: "Event Horizon",
               101: "FRIEDRICH II",
               102: "Two Sides",
               103: "PNEUMOCONIOSIS",
