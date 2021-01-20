@@ -255,6 +255,8 @@ class UAMPGame:
                     level_number = int(packet.message[6:])
                     #if level_number not in net_games.game_names.keys():
                     #    raise ValueError()
+                    if level_number > 999:
+                        raise ValueError()
                     self.change_level(level_number)
                 except ValueError:
                     player.send_message("Couldn't change level to {}".format(packet.message[6:]))
