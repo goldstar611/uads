@@ -67,7 +67,8 @@ class UAMPClient:
         # Inspect the packet so we can update any instance variables
         # We might want to keep track of such as last_packet_time
         if isinstance(packet, net_classes.UAMessageFaction):
-            self.faction = packet.free
+            print("{} is changing faction to number {} from {}".format(self.player_name, packet.new, packet.free))
+            self.faction = packet.new
 
     def send_packet(self, packet):
         # We need to send something to this client
@@ -110,7 +111,9 @@ class UAMPGame:
 
     @property
     def max_players(self):
-        return 4  # TODO FIX ME
+        if self.level_number in net_games.game_owners:
+            return len(net_games.game_owners[self.level_number])
+        return 4  # HACK for MD or custom levels
 
     def check_game(self):
         for player in self.players.copy().values():
@@ -162,7 +165,8 @@ class UAMPGame:
             player.send_packet(net_classes.UAMessageCD(to_id=player.player_id,
                                                        from_id=self.game_id))
 
-    def change_level(self, game_level_id=88):
+    def change_level(self, game_level_id):
+        # TODO Don't change level if there are too many players already joined!
         self.level_number = game_level_id
         for player in self.players.values():
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
@@ -174,19 +178,25 @@ class UAMPGame:
     def has_conflicts(self):
         # Check for too many players in game for map
         if len(self.players.values()) > self.max_players:
-            return True
+            return "Too many players for map!"
+
+        # Check that all players have correct faction for map
+        #for player in self.players.values():
+        #    game_factions = [net_games.owner_to_faction[x] for x in net_games.game_owners[self.level_number]]
+        #    if player.faction not in game_factions:
+        #        return "Player {} has selected faction that is not in map!".format(player.player_name)
 
         # Check for players with same faction
-        factions_seen = {}
-        has_conflict = False
-        for player in self.players.values():
-            if player.faction not in factions_seen:
-                factions_seen[player.faction] = [player]
-            else:
-                has_conflict = True
-                factions_seen[player.faction].append(player)
+        #factions_seen = {}  # TODO FIXME NOT WORKING
+        #has_conflict = False
+        #for player in self.players.values():
+        #    if player.faction not in factions_seen:
+        #        factions_seen[player.faction] = [player]
+        #    else:
+        #        has_conflict = "Multiple players have same faction!"
+        #        factions_seen[player.faction].append(player)
 
-        return has_conflict
+        #return has_conflict
 
     def message_all_players(self, message):
         for player in self.players.values():
@@ -195,8 +205,10 @@ class UAMPGame:
 
     def start_game(self):
         # For each player, send UAMessageLoadGame()
-        if self.has_conflicts():
+        conflicts = self.has_conflicts()
+        if conflicts:
             self.message_all_players(message="Can't start game with conflicts!")
+            self.message_all_players(message=conflicts)
             return False
 
         self.game_started = True
@@ -206,8 +218,6 @@ class UAMPGame:
             msg = net_classes.UAMessageLoadGame(to_id=player.player_id,
                                                 from_id=self.game_id,
                                                 level_number=self.level_number)
-            msg.level_number = self.level_number
-            msg.my_timestamp = self.time_stamp
             msg.sequence_id = player.next_pkt_seq()
             player.send_packet(msg)
 
@@ -242,8 +252,8 @@ class UAMPGame:
             if packet.message.startswith("!level"):
                 try:
                     level_number = int(packet.message[6:])
-                    if level_number not in net_games.game_names.keys():
-                        raise ValueError()
+                    #if level_number not in net_games.game_names.keys():
+                    #    raise ValueError()
                     self.change_level(level_number)
                 except ValueError:
                     player.send_message("Couldn't change level to {}".format(packet.message[6:]))
