@@ -172,7 +172,8 @@ class UAMPGame:
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
                                                              hoster_name=player.player_name))
-            player.send_message(message="Changing level to {} ({})".format(net_games.game_names[game_level_id],
+            player.send_message(message="Changing level to {} ({})".format(net_games.game_names.get(game_level_id,
+                                                                                                    "???"),
                                                                            game_level_id))
 
     def has_conflicts(self):
