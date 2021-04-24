@@ -13,9 +13,9 @@ owner_mykonian = 3
 owner_taerkasten = 4
 owner_ghorkov = 6
 owner_to_faction = {owner_resistance: faction_resistance,
-                    owner_taerkasten: faction_ghorkov,
+                    owner_taerkasten: faction_taerkasten,
                     owner_mykonian: faction_mykonian,
-                    owner_ghorkov: faction_taerkasten}
+                    owner_ghorkov: faction_ghorkov}
 
 game_names = {100: "THE ARTIFICIAL",
               148: "Event Horizon",
