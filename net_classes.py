@@ -27,6 +27,10 @@ class Generic:
             self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
 
 
+class Part(Generic):
+    pass  # TODO FIXME
+
+
 class NetSysHandshake:
     def __init__(self, client_name, data=None):
         # data=b"80 01 16 07 UA:SOURCE TEST NETWORKUnnamed"
@@ -687,6 +691,13 @@ def data_to_class(data):
     try:
         # Every message has packet flags
         flags = data[0]
+
+        #
+        # Multipart messages
+        #
+        if flags & net_messages.PKT_FLAG_PART:
+            print("Multipart message")
+            return Part(msg_type="PKT_FLAG_PART", data=data)
 
         #
         # System messages
