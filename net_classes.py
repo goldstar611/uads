@@ -741,7 +741,6 @@ def data_to_class(data):
             destination = struct.unpack_from("<Q", data, 16)[0]
             data_size = struct.unpack_from("<I", data, 24)[0]
             ua_message = struct.unpack_from("<I", data, 28)[0]
-            # print("usr msg src: {} cast: {}, dst: {}, data_size: {}".format(source, cast, destination, data_size))
 
             if ua_message == net_messages.UAMSG_LOAD:
                 print("UAMSG_LOAD\n")
@@ -882,8 +881,10 @@ def data_to_class(data):
                 print("UAMSG_BUILDINGVHCL\n")
                 return Generic(msg_type="UAMSG_BUILDINGVHCL", data=data)  # TODO FIXME
 
+            print("seq:{}, ch: {}, usr_msg: {}\nsrc: {} cast: {}, dst: {}, data_size: {}\nua_message: {}".format(sequence_id, channel, user_message, source, cast, destination, data_size, ua_message))
             raise ValueError("Unknown UA message! {}\n".format(ua_message))
 
+        print("seq:{}, ch: {}, usr_msg: {}".format(sequence_id, channel, user_message))
         raise ValueError("Unknown message! {}\n".format(data))
     except Exception:
         raise DataToClassException()
