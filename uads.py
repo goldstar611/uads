@@ -47,14 +47,14 @@ class UAMPClient:
     def send_ping(self, game_started, time_stamp):
         self.last_ping_time = int(time.time())
         if game_started:
-            print("Sending UAMessageRequestPing")
+            # print("Sending UAMessageRequestPing")
             ping = net_classes.UAMessageRequestPing(to_id=self.game_id,
                                                     from_id=self.game_id,
                                                     my_timestamp=time_stamp)
             ping.packet_to = self.player_id
             self.send_packet(ping)
 
-        print("Sending NetSysPing")
+        # print("Sending NetSysPing")
         ping = net_classes.NetSysPing(sequence_id=self.packet_sequence)
         self.send_packet(ping)
 
@@ -280,13 +280,12 @@ class UAMPGame:
                 self.multi_part_packets[packet.sequence_id].add_part_data(packet.offset, packet.part_data)
 
             if self.multi_part_packets[packet.sequence_id].is_complete():
-                print("Queueing complete multipart packet")
                 # Queue packet
                 reconstructed_packet = self.multi_part_packets[packet.sequence_id].reconstructed_packet()
                 try:
                     pkt = net_classes.data_to_class(reconstructed_packet)
                 except Exception as e:
-                    print(e)
+                    print("Multipart packet exception!")
                 self.packet_received(pkt, player_addr_port)
 
                 # Remove from dictionary

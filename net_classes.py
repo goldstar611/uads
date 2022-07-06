@@ -38,9 +38,7 @@ class Part:
         self.part_data = part_data
         if data:
             self.data = data
-            print("seq: {}, ch: {}, size: {}, offset: {}, data_len: {}".format(self.sequence_id, self.channel, self.full_size, self.offset, len(self.part_data)))
-            import binascii
-            print("part_data: {}".format(binascii.hexlify(self.part_data)))
+            # print("seq: {}, ch: {}, size: {}, offset: {}, data_len: {}".format(self.sequence_id, self.channel, self.full_size, self.offset, len(self.part_data)))
     
         self._reconstructed_packet = bytearray(full_size)
         self._reconstructed_size = 0
