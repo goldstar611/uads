@@ -1,7 +1,7 @@
 import binascii
+import random
 import socket
 import time
-import hashlib
 import uuid
 
 import net_classes
@@ -32,7 +32,7 @@ class UAMPClient:
     @property
     def player_id(self):
         # This is not globally unique across all UAMPGames() so to find a player use remote_addr and remote_port
-        return int(hashlib.blake2s(self.player_name.encode(), digest_size=8).hexdigest(), 16)
+        return 0xAAAA000000000000 + 65536*random.randrange(2**32) + 0xBBBB
 
     def should_ping(self):
         if int(time.time()) - self.last_ping_time > 2:
