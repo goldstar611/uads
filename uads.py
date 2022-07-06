@@ -44,10 +44,9 @@ class UAMPClient:
         self.last_ping_time = int(time.time())
         if game_started:
             # print("Sending UAMessageRequestPing")
-            ping = net_classes.UAMessageRequestPing(to_id=self.game_id,
+            ping = net_classes.UAMessageRequestPing(to_id=self.player_id,
                                                     from_id=self.game_id,
                                                     my_timestamp=time_stamp)
-            ping.packet_to = self.player_id
             self.send_packet(ping)
 
         # print("Sending NetSysPing")
