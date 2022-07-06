@@ -349,7 +349,8 @@ def main():
     while True:
         for game in games:  # Can be optimized later
             game.check_game()
-            if game.game_finished:
+            if game.game_started and game.game_finished:
+                print("Purging game {} with no players".format(game.game_id))
                 games.remove(game)
                 continue
             if server_is_restarting:
