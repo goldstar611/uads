@@ -142,7 +142,7 @@ def inspect(prefix, cli_address, data, from_server=False):
             print("UAMSG_MESSAGE\n")
             return
     
-        if ua_message == UAMSG_FRACTION:
+        if ua_message == UAMSG_FACTION:
             print("UAMSG_FRACTION\n")
             return
     

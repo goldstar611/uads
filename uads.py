@@ -369,8 +369,8 @@ def main():
             data, player_addr_port = dedicated_server_socket.recvfrom(1500)
             # Convert the raw data to an object
             packet = net_classes.data_to_class(data)
-
-            switch_packet(packet=packet, player_addr_port=player_addr_port, games=games, sock=dedicated_server_socket)
+            if packet:
+                switch_packet(packet=packet, player_addr_port=player_addr_port, games=games, sock=dedicated_server_socket)
         except BlockingIOError:
             pass
         except RestartServer:

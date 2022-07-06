@@ -437,7 +437,7 @@ class UAMessageFaction:
         self.packet_cast = 0
         self.packet_to = to_id
         self.packet_payload_length = 0x14
-        self.message_id = net_messages.UAMSG_FRACTION
+        self.message_id = net_messages.UAMSG_FACTION
         self.my_timestamp = 0
         self.message_count = 0
         self.owner = 0
@@ -757,11 +757,11 @@ def data_to_class(data):
                 return NetSysDisconnected(data=data)
 
             if system_message == net_messages.SYS_MSG_PING:
-                print("SYS_MSG_PING\n")
+                # print("SYS_MSG_PING\n")
                 return NetSysPing(data=data)
 
             if system_message == net_messages.SYS_MSG_DELIVERED:
-                print("SYS_MSG_DELIVERED\n")
+                # print("SYS_MSG_DELIVERED\n")
                 return NetSysDelivered(data=data)
 
             if system_message == net_messages.SYS_MSG_SES_JOIN:
@@ -851,8 +851,8 @@ def data_to_class(data):
                 print("UAMSG_MESSAGE\n")
                 return UAMessageMessage(to_id=None, from_id=None, data=data)
 
-            if ua_message == net_messages.UAMSG_FRACTION:
-                print("UAMSG_FRACTION\n")
+            if ua_message == net_messages.UAMSG_FACTION:
+                print("UAMSG_FACTION\n")
                 return UAMessageFaction(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_UPGRADE:
@@ -920,7 +920,7 @@ def data_to_class(data):
                 return Generic(msg_type="UAMSG_PONG", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_CD:
-                print("UAMSG_CD\n")
+                # print("UAMSG_CD\n")
                 return UAMessageCD(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_SCORE:
