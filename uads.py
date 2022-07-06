@@ -24,15 +24,11 @@ class UAMPClient:
         self.game_id = game_id
 
         self.player_name = player_name
-        self.faction = None  # This should be an enum
+        self.faction = net_games.faction_ghorkov
         self.crc = None  # The reported checksum of game files on disk
         self.ready = None  # If the player is ready or not
         self.cd = None  # If the player has a CD or not
-
-    @property
-    def player_id(self):
-        # This is not globally unique across all UAMPGames() so to find a player use remote_addr and remote_port
-        return 0xAAAA000000000000 + 65536*random.randrange(2**32) + 0xBBBB
+        self.player_id = ((random.randrange(2**32) << 16) + 0xBBBB) | 0xAAAA000000000000
 
     def should_ping(self):
         if int(time.time()) - self.last_ping_time > 2:
@@ -67,7 +63,7 @@ class UAMPClient:
         # Inspect the packet so we can update any instance variables
         # We might want to keep track of such as last_packet_time
         if isinstance(packet, net_classes.UAMessageFaction):
-            print("{} is changing faction to number {} from {}".format(self.player_name, packet.new, packet.free))
+            print("{} is changing faction to number {} from {}".format(self.player_name, packet.new, packet.old))
             self.faction = packet.new
 
     def send_packet(self, packet):
@@ -183,22 +179,22 @@ class UAMPGame:
             return "Too many players for map!"
 
         # Check that all players have correct faction for map
-        #for player in self.players.values():
-        #    game_factions = [net_games.owner_to_faction[x] for x in net_games.game_owners[self.level_number]]
-        #    if player.faction not in game_factions:
-        #        return "Player {} has selected faction that is not in map!".format(player.player_name)
+        for player in self.players.values():
+            game_factions = [net_games.owner_to_faction[x] for x in net_games.game_owners[self.level_number]]
+            if player.faction not in game_factions:
+                return "Player {} has selected invalid faction!".format(player.player_name)
 
         # Check for players with same faction
-        #factions_seen = {}  # TODO FIXME NOT WORKING
-        #has_conflict = False
-        #for player in self.players.values():
-        #    if player.faction not in factions_seen:
-        #        factions_seen[player.faction] = [player]
-        #    else:
-        #        has_conflict = "Multiple players have same faction!"
-        #        factions_seen[player.faction].append(player)
+        factions_seen = {}
+        has_conflict = False
+        for player in self.players.values():
+            if player.faction not in factions_seen:
+                factions_seen[player.faction] = [player]
+            else:
+                has_conflict = "Multiple players have same faction!"
+                factions_seen[player.faction].append(player)
 
-        #return has_conflict
+        return has_conflict
 
     def message_all_players(self, message):
         for player in self.players.values():
@@ -255,13 +251,14 @@ class UAMPGame:
             if packet.message.startswith("!level"):
                 try:
                     level_number = int(packet.message[6:])
-                    #if level_number not in net_games.game_names.keys():
-                    #    raise ValueError()
+                    if level_number not in net_games.game_names.keys():
+                        raise ValueError()
                     if level_number > 999:
                         raise ValueError()
                     self.change_level(level_number)
                 except ValueError:
-                    player.send_message("Couldn't change level to {}".format(packet.message[6:]))
+                    print("Couldn't change level to {}".format(level_number))
+                    player.send_message("Couldn't change level to {}".format(level_number))
                 return
 
         if isinstance(packet, net_classes.Generic):

@@ -446,7 +446,7 @@ class UAMessageFaction:
         self.p2 = 0
 
         self.new = 1
-        self.free = 1
+        self.old = 1
         if data:
             self.data = data
 
@@ -456,7 +456,7 @@ class UAMessageFaction:
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
         ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
-        ret += struct.pack("<HH", self.new, self.free)
+        ret += struct.pack("<HH", self.old, self.new)
         return ret
 
     @data.setter
@@ -465,7 +465,7 @@ class UAMessageFaction:
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
         self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
-        self.new, self.free = struct.unpack_from("<HH", value, 44)
+        self.old, self.new = struct.unpack_from("<HH", value, 44)
 
 
 class UAMessageLoadGame:
