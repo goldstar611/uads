@@ -27,8 +27,49 @@ class Generic:
             self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
 
 
-class Part(Generic):
-    pass  # TODO FIXME
+class Part:
+    def __init__(self, sequence_id=0, channel=0, full_size=0, offset=0, part_data=b'', data=None):
+        # data=b"01 9d000000 01 a6050000 00000000 ..."
+        self.packet_flags = net_messages.PKT_FLAG_PART
+        self.sequence_id = sequence_id
+        self.channel = channel
+        self.full_size = full_size
+        self.offset = offset
+        self.part_data = part_data
+        if data:
+            self.data = data
+            print("seq: {}, ch: {}, size: {}, offset: {}, data_len: {}".format(self.sequence_id, self.channel, self.full_size, self.offset, len(self.part_data)))
+            import binascii
+            print("part_data: {}".format(binascii.hexlify(self.part_data)))
+    
+        self._reconstructed_packet = bytearray(full_size)
+        self._reconstructed_size = 0
+        self.add_part_data(self.offset, self.part_data)
+    
+    @property
+    def data(self):
+        ret = struct.pack("<BIBII", self.packet_flags, self.sequence_id, self.channel, self.full_size, self.offset)
+        ret += self.part_data
+        return ret
+    
+    @data.setter
+    def data(self, value):
+        self.sequence_id, self.channel, self.full_size, self.offset = struct.unpack_from("<IBII", value, 1)
+        self.part_data = bytearray(value[14:])
+    
+    def add_part_data(self, offset, part_data):
+        start = offset
+        end = start + len(part_data)
+        self._reconstructed_packet[start:end] = part_data
+        self._reconstructed_size += len(part_data)
+        
+    def is_complete(self):
+        return self._reconstructed_size >= self.full_size
+
+    def reconstructed_packet(self):
+        # Set flags to PKT_FLAG_MASK_NORMAL and append reconstructed packet
+        header = struct.pack("<BIB", net_messages.PKT_FLAG_GARANT, self.sequence_id, self.channel)
+        return header + self._reconstructed_packet
 
 
 class NetSysHandshake:
@@ -696,8 +737,8 @@ def data_to_class(data):
         # Multipart messages
         #
         if flags & net_messages.PKT_FLAG_PART:
-            print("Multipart message")
-            return Part(msg_type="PKT_FLAG_PART", data=data)
+            print("PKT_FLAG_PART")
+            return Part(data=data)
 
         #
         # System messages

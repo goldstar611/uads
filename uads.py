@@ -92,6 +92,7 @@ class UAMPGame:
         self.game_started = False
         self.game_start_time = 0
         self.players = {}  # type: dict[tuple, UAMPClient]
+        self.multi_part_packets = {}
 
     def __iter__(self):
         # This lets us do cool stuff like `if player in game`
@@ -250,6 +251,7 @@ class UAMPGame:
             if packet.message == "!start":
                 self.start_game()
                 return
+
             if packet.message.startswith("!level"):
                 try:
                     level_number = int(packet.message[6:])
@@ -269,6 +271,26 @@ class UAMPGame:
 
         if isinstance(packet, net_classes.NetSysDisconnected):
             self.kick_player(player)
+            return
+
+        if isinstance(packet, net_classes.Part):
+            if packet.sequence_id not in self.multi_part_packets:
+                self.multi_part_packets[packet.sequence_id] = packet
+            else:
+                self.multi_part_packets[packet.sequence_id].add_part_data(packet.offset, packet.part_data)
+
+            if self.multi_part_packets[packet.sequence_id].is_complete():
+                print("Queueing complete multipart packet")
+                # Queue packet
+                reconstructed_packet = self.multi_part_packets[packet.sequence_id].reconstructed_packet()
+                try:
+                    pkt = net_classes.data_to_class(reconstructed_packet)
+                except Exception as e:
+                    print(e)
+                self.packet_received(pkt, player_addr_port)
+
+                # Remove from dictionary
+                del self.multi_part_packets[packet.sequence_id]
             return
 
         if packet.packet_type == net_messages.USR_MSG_DATA and packet.packet_cast:
@@ -348,7 +370,7 @@ def main():
         try:
             time.sleep(0.001)  # sleep 1 ms
             # Receive data from players
-            data, player_addr_port = dedicated_server_socket.recvfrom(1024)
+            data, player_addr_port = dedicated_server_socket.recvfrom(1500)
             # Convert the raw data to an object
             packet = net_classes.data_to_class(data)
 
