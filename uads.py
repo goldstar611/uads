@@ -59,10 +59,10 @@ class UAMPClient:
 
     def inspect_packet(self, packet):
         self.last_packet_time = int(time.time())
-        # Inspect the packet so we can update any instance variables
+        # Inspect the packet to update any instance variables
         # We might want to keep track of such as last_packet_time
         if isinstance(packet, net_classes.UAMessageFaction):
-            print("{} is changing faction to number {} from {}".format(self.player_name, packet.new, packet.old))
+            print(f"{self.player_name} is changing faction to number {packet.new} from {packet.old}")
             self.faction = packet.new
 
     def send_packet(self, packet):
@@ -122,7 +122,7 @@ class UAMPGame:
         for player in self.players.copy().values():
             if player.should_kick():
                 self.kick_player(player)
-                self.message_all_players("{} has been kicked from game".format(player.player_name))
+                self.message_all_players(f"{player.player_name} has been kicked from game")
 
     def kick_player(self, player):
         player.send_packet(net_classes.NetSysDisconnected())
@@ -142,7 +142,7 @@ class UAMPGame:
         current_player_names = [player.player_name for player in self.players.values()]
         while temp_name in current_player_names:
             i += 1
-            temp_name = "{}-{}".format(player_name, i)
+            temp_name = f"{player_name}-{i}"
 
         return temp_name
 
@@ -174,9 +174,8 @@ class UAMPGame:
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
                                                              hoster_name=player.player_name))
-            player.send_message(message="Changing level to {} ({})".format(net_games.game_names.get(game_level_id,
-                                                                                                    "???"),
-                                                                           game_level_id))
+            player.send_message(message="Changing level to "
+                                        f"{net_games.game_names.get(game_level_id, '???')} ({game_level_id})")
 
     def has_conflicts(self):
         # Check for too many players in game for map
@@ -187,7 +186,7 @@ class UAMPGame:
         for player in self.players.values():
             game_factions = [net_games.owner_to_faction[x] for x in net_games.game_owners[self.level_number]]
             if player.faction not in game_factions:
-                return "Player {} has selected invalid faction!".format(player.player_name)
+                return f"Player {player.player_name} has selected invalid faction!"
 
         # Check for players with same faction
         factions_seen = {}
@@ -228,7 +227,7 @@ class UAMPGame:
         # The dedicated server received a packet and determined that it was related to this UAMPGame
         # Most of the UAMPGame logic will go here
         # For example, we might get a player connect message, then we will call self.add_player()
-        # Or the game might already be started and we will need to send the incoming packet to all of the other players
+        # Or the game might already be started, and we will need to send the incoming packet to all other players
         # Inspect the data and send the appropriate response(s)
         player = self.players[player_addr_port]
         player.inspect_packet(packet)
@@ -245,7 +244,7 @@ class UAMPGame:
                              time_stamp=self.game_start_time)
 
         if isinstance(packet, net_classes.UAMessageMessage):
-            print("New message: {}".format(packet.message))
+            print(f"New message: {packet.message}")
             if packet.message == "!restart":
                 print(f"{player.player_name} has restarted the server")
                 raise RestartServer()
@@ -270,8 +269,8 @@ class UAMPGame:
 
                     self.change_level(level_number)
                 except ValueError:
-                    print("Couldn't change level to {}".format(level_number))
-                    player.send_message("Couldn't change level to {}".format(level_number))
+                    print(f"Couldn't change level to {level_number}")
+                    player.send_message(f"Couldn't change level to {level_number}")
                 return
 
         if isinstance(packet, net_classes.Generic):
@@ -295,9 +294,9 @@ class UAMPGame:
                 reconstructed_packet = self.multi_part_packets[packet.sequence_id].reconstructed_packet()
                 try:
                     pkt = net_classes.data_to_class(reconstructed_packet)
+                    self.packet_received(pkt, player_addr_port)
                 except Exception as e:
-                    print("Multipart packet exception! {}".format(e))
-                self.packet_received(pkt, player_addr_port)
+                    print(f"Multipart packet exception! {e}")
 
                 # Remove from dictionary
                 del self.multi_part_packets[packet.sequence_id]
@@ -345,7 +344,7 @@ def switch_packet(packet, player_addr_port, games, sock):
     # Either we got an invalid packet from someone who got dropped from the game or
     # someone is messing with us.
     # Or we restarted the dedicated server while games were running.
-    print("Ignoring packet {} from {}".format(packet, player_addr_port))
+    print(f"Ignoring packet {packet} from {player_addr_port}")
 
 
 def main():
@@ -365,7 +364,7 @@ def main():
         for game in games:  # Can be optimized later
             game.check_game()
             if game.game_started and game.game_finished:
-                print("Purging game {} with no players".format(game.game_id))
+                print(f"Purging game {game.game_id} with no players")
                 games.remove(game)
                 continue
             if server_is_restarting:
@@ -375,8 +374,8 @@ def main():
 
                 if int(time.time()) - server_restart_msg_time >= 1:
                     server_restart_msg_time = int(time.time())
-                    game.message_all_players(message="Server is restarting in {} seconds".format(server_restart_time -
-                                                                                                 int(time.time())))
+                    game.message_all_players(message="Server is restarting in "
+                                                     f"{server_restart_time - int(time.time())} seconds")
 
         try:
             time.sleep(0.001)  # sleep 1 ms
@@ -385,7 +384,8 @@ def main():
             # Convert the raw data to an object
             packet = net_classes.data_to_class(data)
             if packet:
-                switch_packet(packet=packet, player_addr_port=player_addr_port, games=games, sock=dedicated_server_socket)
+                switch_packet(packet=packet, player_addr_port=player_addr_port,
+                              games=games, sock=dedicated_server_socket)
         except BlockingIOError:
             pass
         except RestartServer:
@@ -393,7 +393,7 @@ def main():
             server_restart_time = int(time.time()) + 5
             pass
         except net_classes.DataToClassException:
-            print("Error parsing packet with data:\n{}".format(binascii.hexlify(data)))
+            print(f"Error parsing packet with data:\n{binascii.hexlify(data)}")
             pass
 
 
