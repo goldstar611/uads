@@ -14,13 +14,13 @@ class RestartServer(Exception):
 
 
 class UAMPClient:
-    def __init__(self, sock, game_id, player_name, remote_addr, remote_port):
+    def __init__(self, sock, game_id, player_name, remote_addr, remote_port, player_id=None):
         self.socket = sock
         self.remote_addr = remote_addr
         self.remote_port = remote_port
         self.packet_sequence = 0  # The last packet number that we sent to the client
         self.last_ping_time = 0  # The time.time() when we last sent a ping to this client
-        self.last_packet_time = 0  # The time.time() when we last received a packet from this client
+        self.last_packet_time = time.time()  # The time.time() when we last received a packet from this client
         self.game_id = game_id
 
         self.player_name = player_name
@@ -28,7 +28,7 @@ class UAMPClient:
         self.crc = None  # The reported checksum of game files on disk
         self.ready = None  # If the player is ready or not
         self.cd = None  # If the player has a CD or not
-        self.player_id = ((random.randrange(2**32) << 16) + 0xBBBB) | 0xAAAA000000000000
+        self.player_id = player_id or ((random.randrange(2**32) << 16) + 0xBBBB) | 0xAAAA000000000000
 
     def should_ping(self):
         if int(time.time()) - self.last_ping_time > 2:
@@ -87,6 +87,7 @@ class UAMPGame:
         self.game_id = uuid.uuid4().fields[5]
         self.level_number = 93
         self.game_started = False
+        self.game_locked = False
         self.game_start_time = 0
         self.players = {}  # type: dict[tuple, UAMPClient]
         self.multi_part_packets = {}
@@ -136,9 +137,10 @@ class UAMPGame:
         self.kick_player(player)
         return player_name
 
-    def kick_player(self, player):
+    def kick_player(self, player, reconnecting=False):
         player.send_message(message="You have been kicked from the server.")
-        player.send_packet(net_classes.NetSysDisconnected())
+        if not reconnecting:
+            player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
 
         player_left_message = net_classes.NetUsrDisconnect(player_id=player.player_id,
@@ -160,10 +162,10 @@ class UAMPGame:
 
         return temp_name
 
-    def add_player(self, player_name, player_addr_port):
+    def add_player(self, player_name, player_addr_port, player_id=None):
         remote_addr, remote_port = player_addr_port
         new_player = UAMPClient(sock=self.socket, game_id=self.game_id, player_name=self.player_name_clean(player_name),
-                                remote_addr=remote_addr, remote_port=remote_port)
+                                remote_addr=remote_addr, remote_port=remote_port, player_id=player_id)
         self.players[player_addr_port] = new_player
 
         new_player.send_packet(net_classes.NetSysConnected(client_name=new_player.player_name,
@@ -272,6 +274,42 @@ class UAMPGame:
                 self.start_game()
                 return
 
+            if packet.message.startswith("!gameid"):
+                player.send_message(f"Game ID: {self.game_id}")
+                return
+
+            if packet.message.startswith("!lock"):
+                self.game_locked = True
+                player.send_message(f"Game locked. No new players can join.")
+                return
+
+            if packet.message.startswith("!connect"):
+                global all_games
+                player_name = player.player_name
+                player_id = player.player_id
+                game_id = int(packet.message[8:])
+
+                # Ensure game_id is valid
+                for game in all_games:
+                    if game.game_id == game_id:
+                        # Check if game is_full
+                        if game.is_full():
+                            player.send_message(message="Game is full or started.")
+                            return
+
+                        # Pop player from game
+                        # Send disconnect message to everyone left in the game
+                        self.kick_player(player, reconnecting=True)
+
+                        # Add player to specified game
+                        new_player = game.add_player(player_name, player_addr_port, player_id)
+                return
+
+            if packet.message.startswith("!unlock"):
+                self.game_locked = False
+                player.send_message(f"Game unlocked. Allowing new players.")
+                return
+
             if packet.message.startswith("!kick"):
                 i = int(packet.message[5:])
                 print(f"{player.player_name} wants to kick player index {i}")
@@ -342,7 +380,7 @@ class UAMPGame:
         # Can we add in more players to this game?
 
         # If the game has started, don't accept any new players
-        if self.game_started:
+        if self.game_started or self.game_locked:
             return True
 
         # If we have filled all player positions, don't accept any new players
@@ -378,6 +416,9 @@ def switch_packet(packet, player_addr_port, games, sock):
     print(f"Ignoring packet {packet} from {player_addr_port}")
 
 
+all_games = []  # type: list[UAMPGame]
+
+
 def main():
     # Server code
     dedicated_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -389,14 +430,14 @@ def main():
     server_restart_time = 0
     server_restart_msg_time = 0
 
-    games = [UAMPGame(sock=dedicated_server_socket)]  # type: list[UAMPGame]
+    global all_games
 
     while True:
-        for game in games:  # Can be optimized later
+        for game in all_games:  # Can be optimized later
             game.check_game()
             if game.game_started and game.game_finished:
                 print(f"Purging game {game.game_id} with no players")
-                games.remove(game)
+                all_games.remove(game)
                 continue
             if server_is_restarting:
                 if int(time.time()) > server_restart_time:
@@ -416,7 +457,7 @@ def main():
             packet = net_classes.data_to_class(data)
             if packet:
                 switch_packet(packet=packet, player_addr_port=player_addr_port,
-                              games=games, sock=dedicated_server_socket)
+                              games=all_games, sock=dedicated_server_socket)
         except BlockingIOError:
             pass
         except RestartServer:
