@@ -275,6 +275,9 @@ class UAMPGame:
                         raise ValueError()
 
                     self.change_level(level_number)
+                    conflicts = self.has_conflicts()
+                    if conflicts:
+                        self.message_all_players(message=conflicts)
                 except ValueError:
                     print(f"Couldn't change level to {level_number}")
                     player.send_message(f"Couldn't change level to {level_number}")
