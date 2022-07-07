@@ -37,7 +37,8 @@ class Part:
         self.part_data = part_data
         if data:
             self.data = data
-            # print("seq: {}, ch: {}, size: {}, offset: {}, data_len: {}".format(self.sequence_id, self.channel, self.full_size, self.offset, len(self.part_data)))
+            # print(f"seq: {self.sequence_id}, ch: {self.channel}, size: {self.full_size}, "
+            #      f"offset: {self.offset}, data_len: {len(self.part_data)}")
     
         self._reconstructed_packet = bytearray(full_size)
         self._reconstructed_size = 0
@@ -181,7 +182,7 @@ class NetSysSessionJoin:
     @property
     def data(self):
         ret = struct.pack("<BBB", self.packet_flags, self.packet_type, self.always_one)
-        id_server_name_build_date = "{}|{}|{}".format(self.level_number, self.server_name, self.build_date)
+        id_server_name_build_date = f"{self.level_number}|{self.server_name}|{self.build_date}"
         ret += struct.pack("<QB", self.game_id, len(id_server_name_build_date))
         ret += id_server_name_build_date.encode()
         return ret
@@ -591,16 +592,9 @@ class UAMessageSyncGame:
             self.data = data
 
     def __repr__(self):
-        return "<UAMessageSyncGame(host_id={}, gun0={}, gun1={}, gun2={}, gun3={}, gun4={}, gun5={}, gun6={}, gun7={}".format(self.host_id,
-                                                                                                                              self.gun0,
-                                                                                                                              self.gun1,
-                                                                                                                              self.gun2,
-                                                                                                                              self.gun3,
-                                                                                                                              self.gun4,
-                                                                                                                              self.gun5,
-                                                                                                                              self.gun6,
-                                                                                                                              self.gun7,
-                                                                                                                              )
+        return f"<UAMessageSyncGame(host_id={self.host_id}, " \
+               f"gun0={self.gun0}, gun1={self.gun1}, gun2={self.gun2}, gun3={self.gun3}, " \
+               f"gun4={self.gun4}, gun5={self.gun5}, gun6={self.gun6}, gun7={self.gun7}"
 
     @property
     def data(self):
@@ -930,10 +924,12 @@ def data_to_class(data):
                 print("UAMSG_BUILDINGVHCL\n")
                 return Generic(msg_type="UAMSG_BUILDINGVHCL", data=data)  # TODO FIXME
 
-            print("seq:{}, ch: {}, usr_msg: {}\nsrc: {} cast: {}, dst: {}, data_size: {}\nua_message: {}".format(sequence_id, channel, user_message, source, cast, destination, data_size, ua_message))
-            raise ValueError("Unknown UA message! {}\n".format(ua_message))
+            print(f"seq:{sequence_id}, ch: {channel}, usr_msg: {user_message}\n"
+                  f"src: {source} cast: {cast}, dst: {destination}, data_size: {data_size}\n"
+                  f"ua_message: {ua_message}")
+            raise ValueError(f"Unknown UA message! {ua_message}\n")
 
-        print("seq:{}, ch: {}, usr_msg: {}".format(sequence_id, channel, user_message))
-        raise ValueError("Unknown message! {}\n".format(data))
+        print(f"seq:{sequence_id}, ch: {channel}, usr_msg: {user_message}")
+        raise ValueError(f"Unknown message! {data}\n")
     except Exception:
         raise DataToClassException()
