@@ -242,15 +242,19 @@ class UAMPGame:
         if isinstance(packet, net_classes.UAMessageMessage):
             print("New message: {}".format(packet.message))
             if packet.message == "!restart":
+                print(f"{player.player_name} has restarted the server")
                 raise RestartServer()
 
             if packet.message == "!start":
+                print(f"{player.player_name} has started the game")
                 self.start_game()
                 return
 
             if packet.message.startswith("!level"):
+                level_number = int(packet.message[6:])
+                print(f"{player.player_name} wants to change level to {level_number}")
+
                 try:
-                    level_number = int(packet.message[6:])
                     if level_number not in net_games.game_names.keys():
                         raise ValueError()
                     if level_number > 999:
