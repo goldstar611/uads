@@ -174,6 +174,8 @@ class UAMPGame:
                                                              level_number=self.level_number,
                                                              hoster_name="uads"))
 
+        new_player.send_message("To start game enter !start")
+
         players = {player.player_name: player.player_id for player in self.players.values()}
         for player in self.players.values():
             player.send_packet(net_classes.NetUsrSessionList(users=players,
@@ -181,12 +183,14 @@ class UAMPGame:
             player.send_packet(net_classes.UAMessageWelcome(to_id=player.player_id,
                                                             from_id=new_player.player_id,
                                                             sequence_id=player.next_pkt_seq()))
-            player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
-                                                        from_id=new_player.player_id,
-                                                        sequence_id=player.next_pkt_seq()))
-            player.send_packet(net_classes.UAMessageCD(to_id=player.player_id,
-                                                       from_id=new_player.player_id,
-                                                       sequence_id=player.next_pkt_seq()))
+            #player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
+            #                                            from_id=new_player.player_id,
+            #                                            sequence_id=player.next_pkt_seq()))
+            #player.send_packet(net_classes.UAMessageCD(to_id=player.player_id,
+            #                                           from_id=new_player.player_id,
+            #                                           sequence_id=player.next_pkt_seq()))
+
+        return new_player
 
     def change_level(self, game_level_id):
         self.level_number = game_level_id
@@ -287,7 +291,10 @@ class UAMPGame:
                 global all_games
                 player_name = player.player_name
                 player_id = player.player_id
-                game_id = int(packet.message[8:])
+                try:
+                    game_id = int(packet.message[8:])
+                except ValueError:
+                    return
 
                 # Ensure game_id is valid
                 for game in all_games:
@@ -311,8 +318,11 @@ class UAMPGame:
                 return
 
             if packet.message.startswith("!kick"):
-                i = int(packet.message[5:])
-                print(f"{player.player_name} wants to kick player index {i}")
+                print(f"{player.player_name} wants to kick player index {packet.message[5:]}")
+                try:
+                    i = int(packet.message[5:])
+                except ValueError:
+                    return
                 kicked = self.kick_player_by_index(i)
                 if kicked:
                     player.send_message(message=f"Kicked player {kicked}")
@@ -321,8 +331,11 @@ class UAMPGame:
                 return
 
             if packet.message.startswith("!level"):
-                level_number = int(packet.message[6:])
-                print(f"{player.player_name} wants to change level to {level_number}")
+                print(f"{player.player_name} wants to change level to {packet.message[6:]}")
+                try:
+                    level_number = int(packet.message[6:])
+                except ValueError:
+                    return
 
                 try:
                     if level_number not in net_games.game_names.keys():
