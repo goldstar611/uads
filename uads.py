@@ -105,6 +105,10 @@ class UAMPGame:
         # The game is finished when no one is connected :)
         return len(self.players.keys()) == 0
 
+    @property
+    def num_players(self):
+        return len(self.players.keys())
+
     def max_players(self, level_number=None):
         if level_number is None:
             level_number = self.level_number
@@ -176,7 +180,7 @@ class UAMPGame:
 
     def has_conflicts(self):
         # Check for too many players in game for map
-        if len(self.players.keys()) > self.max_players():
+        if self.num_players > self.max_players():
             return "Too many players for map!"
 
         # Check that all players have correct faction for map
@@ -260,8 +264,7 @@ class UAMPGame:
                         raise ValueError()
                     if level_number > 999:
                         raise ValueError()
-                    max_players = self.max_players(level_number=level_number)
-                    if len(self.players.keys()) > max_players:
+                    if self.num_players > self.max_players(level_number=level_number):
                         player.send_message(message="Too many players for map!")
                         raise ValueError()
 
@@ -313,7 +316,7 @@ class UAMPGame:
             return True
 
         # If we have filled all player positions, don't accept any new players
-        return len(self.players.keys()) >= self.max_players()
+        return self.num_players >= self.max_players()
 
 
 def switch_packet(packet, player_addr_port, games, sock):
