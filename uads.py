@@ -24,7 +24,7 @@ class UAMPClient:
         self.game_id = game_id
 
         self.player_name = player_name
-        self.faction = net_games.faction_ghorkov
+        self.faction = net_games.faction_resistance
         self.crc = None  # The reported checksum of game files on disk
         self.ready = None  # If the player is ready or not
         self.cd = None  # If the player has a CD or not

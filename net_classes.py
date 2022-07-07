@@ -295,7 +295,7 @@ class NetUsrDisconnect:
 
 
 class UAMessageWelcome:
-    def __init__(self, to_id, from_id, data=None):
+    def __init__(self, to_id, from_id, faction=0, data=None):
         # data = b"02 02000000 01 10 691ecc1129000000 00 57a58b042c000000 14000000 fe030000 00000000 3a59bba2 00 0f 00 00 0100 01 01"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = 0
@@ -314,7 +314,7 @@ class UAMessageWelcome:
         self.p1 = 0
         self.p2 = 0
 
-        self.faction = 1
+        self.faction = faction
         self.ready = 1
         self.cd = 1
         if data:
