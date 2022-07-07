@@ -259,6 +259,11 @@ class UAMPGame:
                         raise ValueError()
                     if level_number > 999:
                         raise ValueError()
+                    max_players = len(net_games.game_owners.get(level_number, [1, 1, 1, 1]))
+                    if len(self.players.keys()) > max_players:
+                        player.send_message(message="Too many players for map!")
+                        raise ValueError()
+
                     self.change_level(level_number)
                 except ValueError:
                     print("Couldn't change level to {}".format(level_number))
