@@ -296,7 +296,7 @@ class UAMPGame:
                 try:
                     pkt = net_classes.data_to_class(reconstructed_packet)
                 except Exception as e:
-                    print("Multipart packet exception!")
+                    print("Multipart packet exception! {}".format(e))
                 self.packet_received(pkt, player_addr_port)
 
                 # Remove from dictionary
