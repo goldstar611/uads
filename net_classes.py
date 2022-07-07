@@ -294,6 +294,38 @@ class NetUsrDisconnect:
         self.player_id, self.cast = struct.unpack_from("<QB", value, 7)
 
 
+class NetUsrJoin:
+
+    def __init__(self, client_name, client_id, data=None):
+        # data=b"00 04000000 00 40 48b80105da4a0200 08 556e6e616d656433"
+        #                                              U n n a m e d 3
+        self.packet_flags = net_messages.PKT_FLAG_NONE
+        self.sequence_id = 0
+        self.channel = 0
+        self.packet_type = net_messages.USR_MSG_SES_USERJOIN
+
+        self.user_id = client_id
+        self.user_name = client_name
+
+        if data:
+            self.data = data
+
+    @property
+    def data(self):
+        ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
+        ret += struct.pack("<QB", self.user_id, len(self.user_name))
+        ret += self.user_name.encode()
+        return ret
+
+    @data.setter
+    def data(self, value):
+        sequence_id, channel, packet_type, user_id, username_len = struct.unpack_from("<IBBQB", value, 1)
+        self.sequence_id = sequence_id
+        self.channel = channel
+        self.user_id = user_id
+        self.user_name = value[16:].decode()
+
+
 class UAMessageWelcome:
     def __init__(self, to_id, from_id, faction=0, data=None):
         # data = b"02 02000000 01 10 691ecc1129000000 00 57a58b042c000000 14000000 fe030000 00000000 3a59bba2 00 0f 00 00 0100 01 01"
