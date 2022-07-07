@@ -162,8 +162,9 @@ class UAMPGame:
                                                        from_id=new_player.player_id))
 
     def change_level(self, game_level_id):
-        # TODO Don't change level if there are too many players already joined!
+        max_players = len(net_games.game_owners.get(game_level_id, [1, 1, 1, 1]))
         self.level_number = game_level_id
+        self.max_players = max_players
         for player in self.players.values():
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
