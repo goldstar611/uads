@@ -175,7 +175,7 @@ class UAMPGame:
 
     def has_conflicts(self):
         # Check for too many players in game for map
-        if len(self.players.values()) > self.max_players:
+        if len(self.players.keys()) > self.max_players:
             return "Too many players for map!"
 
         # Check that all players have correct faction for map
