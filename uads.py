@@ -46,11 +46,12 @@ class UAMPClient:
             # print("Sending UAMessageRequestPing")
             ping = net_classes.UAMessageRequestPing(to_id=self.player_id,
                                                     from_id=self.game_id,
-                                                    my_timestamp=time_stamp)
+                                                    sequence_id=self.next_pkt_seq(),
+                                                    my_timestamp=time_stamp,)
             self.send_packet(ping)
 
         # print("Sending NetSysPing")
-        ping = net_classes.NetSysPing(sequence_id=self.packet_sequence)
+        ping = net_classes.NetSysPing(sequence_id=self.next_pkt_seq())
         self.send_packet(ping)
 
     def next_pkt_seq(self):
@@ -75,6 +76,7 @@ class UAMPClient:
         print(message)
         pkt = net_classes.UAMessageMessage(from_id=self.player_id,
                                            to_id=self.game_id,
+                                           sequence_id=self.next_pkt_seq(),
                                            message=message)
         self.send_packet(pkt)
 
@@ -128,7 +130,8 @@ class UAMPGame:
         player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
 
-        player_left_message = net_classes.NetUsrDisconnect(player_id=player.player_id)
+        player_left_message = net_classes.NetUsrDisconnect(player_id=player.player_id,
+                                                           sequence_id=player.next_pkt_seq())
         for player in self.players.values():
             player.send_packet(player_left_message)
 
@@ -160,13 +163,17 @@ class UAMPGame:
 
         players = {player.player_name: player.player_id for player in self.players.values()}
         for player in self.players.values():
-            player.send_packet(net_classes.NetUsrSessionList(players))
+            player.send_packet(net_classes.NetUsrSessionList(users=players,
+                                                             sequence_id=player.next_pkt_seq()))
             player.send_packet(net_classes.UAMessageWelcome(to_id=player.player_id,
-                                                            from_id=new_player.player_id))
+                                                            from_id=new_player.player_id,
+                                                            sequence_id=player.next_pkt_seq()))
             player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
-                                                        from_id=new_player.player_id))
+                                                        from_id=new_player.player_id,
+                                                        sequence_id=player.next_pkt_seq()))
             player.send_packet(net_classes.UAMessageCD(to_id=player.player_id,
-                                                       from_id=new_player.player_id))
+                                                       from_id=new_player.player_id,
+                                                       sequence_id=player.next_pkt_seq()))
 
     def change_level(self, game_level_id):
         self.level_number = game_level_id
@@ -219,8 +226,8 @@ class UAMPGame:
         for player in self.players.values():
             msg = net_classes.UAMessageLoadGame(to_id=player.player_id,
                                                 from_id=self.game_id,
-                                                level_number=self.level_number)
-            msg.sequence_id = player.next_pkt_seq()
+                                                level_number=self.level_number,
+                                                sequence_id=player.next_pkt_seq())
             player.send_packet(msg)
 
     def packet_received(self, packet, player_addr_port):
@@ -241,7 +248,7 @@ class UAMPGame:
 
         if player.should_ping():
             player.send_ping(game_started=self.game_started,
-                             time_stamp=self.game_start_time)
+                             time_stamp=self.time_stamp)
 
         if isinstance(packet, net_classes.UAMessageMessage):
             print(f"New message: {packet.message}")

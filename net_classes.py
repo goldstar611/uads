@@ -22,7 +22,7 @@ class Generic:
         if len(value) > 36:
             self.packet_flags, self.sequence_id, self.channel, self.packet_type = struct.unpack_from("<BIBB", value, 0)
             self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-            self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+            self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
             self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
 
 
@@ -158,7 +158,7 @@ class NetSysPing:
 
 
 class NetSysDelivered(NetSysPing):
-    def __init__(self, sequence_id=None, data=None):
+    def __init__(self, sequence_id=0, data=None):
         # data=b"80 07 01000000"
         super().__init__(sequence_id=sequence_id, data=data)
         self.packet_type = net_messages.SYS_MSG_DELIVERED
@@ -234,10 +234,10 @@ class NetSysSessionLead:
 
 
 class NetUsrSessionList:
-    def __init__(self, users, data=None):
+    def __init__(self, users, sequence_id=1, data=None):
         # data=b"00 01000000 00 42 02000000 691ecc1129000000 07 Unnamed 57a58b042c000000 0c Unnamed.1883"
         self.packet_flags = net_messages.PKT_FLAG_NONE
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 0
         self.packet_type = net_messages.USR_MSG_SES_USERLIST
 
@@ -269,10 +269,10 @@ class NetUsrSessionList:
 
 
 class NetUsrDisconnect:
-    def __init__(self, player_id, data=None):
+    def __init__(self, player_id, sequence_id=0, data=None):
         # data=b"00 0c000000 00 41 a08e5ddd0a030000 01"
         self.packet_flags = net_messages.PKT_FLAG_NONE
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 0
         self.packet_type = net_messages.USR_MSG_SES_USERLEAVE
 
@@ -327,10 +327,10 @@ class NetUsrJoin:
 
 
 class UAMessageWelcome:
-    def __init__(self, to_id, from_id, faction=0, data=None):
+    def __init__(self, to_id, from_id, sequence_id=2, faction=0, data=None):
         # data = b"02 02000000 01 10 691ecc1129000000 00 57a58b042c000000 14000000 fe030000 00000000 3a59bba2 00 0f 00 00 0100 01 01"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
@@ -339,10 +339,10 @@ class UAMessageWelcome:
         self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_WELCOME
-        self.my_timestamp = 0
         self.message_count = 0
+        self.my_timestamp = 0
         self.owner = 0
-        self.p0 = 0x0f
+        self.p0 = 0
         self.p1 = 0
         self.p2 = 0
 
@@ -356,7 +356,7 @@ class UAMessageWelcome:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<HBB", self.faction, self.ready, self.cd)
         return ret
@@ -365,28 +365,28 @@ class UAMessageWelcome:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.faction, self.ready, self.cd = struct.unpack_from("<HBB", value, 44)
 
 
 class UAMessageCRC:
-    def __init__(self, to_id, from_id, data=None):
+    def __init__(self, to_id, from_id, sequence_id=3, data=None):
         # data=b"02 02000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 0d040000 00000000 b0a187d5 00 55 00 00 2ab4c182"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
         self.packet_from = from_id
-        self.packet_cast = 0
+        self.packet_cast = 1
         self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_CRC
-        self.my_timestamp = 0
         self.message_count = 0
+        self.my_timestamp = 0
         self.owner = 0
-        self.p0 = 0x55
+        self.p0 = 0
         self.p1 = 0
         self.p2 = 0
 
@@ -398,7 +398,7 @@ class UAMessageCRC:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<I", self.checksum)
         return ret
@@ -407,26 +407,26 @@ class UAMessageCRC:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.checksum = struct.unpack_from("<I", value, 44)[0]
 
 
 class UAMessageCD:
-    def __init__(self, to_id, from_id, data=None):
+    def __init__(self, to_id, from_id, sequence_id=0, data=None):
         # data=b"02 02000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 12040000 00000000 a04b1000 00 61 00 00 01 ff 00 00"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
         self.packet_from = from_id
-        self.packet_cast = 0
+        self.packet_cast = 1
         self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_CD
-        self.my_timestamp = 0
         self.message_count = 0
+        self.my_timestamp = 0
         self.owner = 0
         self.p0 = 0x61
         self.p1 = 0
@@ -443,7 +443,7 @@ class UAMessageCD:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<BBBB", self.cd, self.ready, self.cd_p0, self.cd_p1)
         return ret
@@ -452,7 +452,7 @@ class UAMessageCD:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.cd, self.ready, self.cd_p0, self.cd_p1 = struct.unpack_from("<BBBB", value, 44)
 
@@ -470,8 +470,8 @@ class UAMessageFaction:
         self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_FACTION
-        self.my_timestamp = 0
         self.message_count = 0
+        self.my_timestamp = 0
         self.owner = 0
         self.p0 = 0x7f
         self.p1 = 0
@@ -486,7 +486,7 @@ class UAMessageFaction:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<HH", self.old, self.new)
         return ret
@@ -495,16 +495,16 @@ class UAMessageFaction:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.old, self.new = struct.unpack_from("<HH", value, 44)
 
 
 class UAMessageLoadGame:
-    def __init__(self, to_id, from_id, level_number, my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, level_number, sequence_id=0, my_timestamp=0, data=None):
         # data=b"02 06000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 e8030000 00000000 00640000 00 61 00 00 5d000000"
         self.packet_flags = net_messages.PKT_FLAG_GARANT
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
@@ -513,8 +513,8 @@ class UAMessageLoadGame:
         self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_LOAD
-        self.my_timestamp = my_timestamp
         self.message_count = 0
+        self.my_timestamp = my_timestamp
         self.owner = 0
         self.p0 = 0x61
         self.p1 = 0
@@ -528,7 +528,7 @@ class UAMessageLoadGame:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<I", self.level_number)
         return ret
@@ -537,16 +537,16 @@ class UAMessageLoadGame:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.level_number = struct.unpack_from("<I", value, 44)[0]
 
 
 class UAMessageMessage:
-    def __init__(self, to_id, from_id, message="", my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, sequence_id=0, message="", my_timestamp=0, data=None):
         # data=b'02 02000000 01 10 57a58b042c000000 01 b820cc1129000000 50000000 fa030000 00000000 02000000 00 00 00 00 64000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
         self.packet_flags = net_messages.PKT_FLAG_GARANT
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
@@ -555,8 +555,8 @@ class UAMessageMessage:
         self.packet_to = to_id
         self.packet_payload_length = 0x50
         self.message_id = net_messages.UAMSG_MESSAGE
-        self.my_timestamp = my_timestamp
         self.message_count = 0
+        self.my_timestamp = my_timestamp
         self.owner = 0
         self.p0 = 0x0
         self.p1 = 0
@@ -574,7 +574,7 @@ class UAMessageMessage:
 
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += msg
         return ret
@@ -583,7 +583,7 @@ class UAMessageMessage:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.message = value[44:].decode()
         self.message = self.message[:self.message.index("\x00")]
@@ -604,8 +604,8 @@ class UAMessageSyncGame:
         self.packet_to = to_id
         self.packet_payload_length = 0x34
         self.message_id = net_messages.UAMSG_SYNCGM
-        self.my_timestamp = my_timestamp
         self.message_count = 0
+        self.my_timestamp = my_timestamp
         self.owner = 1
         self.p0 = 0x61
         self.p1 = 0
@@ -632,7 +632,7 @@ class UAMessageSyncGame:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<IIIIIIIII", self.host_id, self.gun0, self.gun1, self.gun2, self.gun3, self.gun4,
                            self.gun5, self.gun6, self.gun7)
@@ -642,7 +642,7 @@ class UAMessageSyncGame:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.host_id, self.gun0, self.gun1, self.gun2, self.gun3, self.gun4, self.gun5, self.gun6, self.gun7 = struct.unpack_from("<IIIIIIIII", value, 44)
 
@@ -662,8 +662,8 @@ class UAMessageViewer:
         self.packet_to = to_id
         self.packet_payload_length = 0x1c
         self.message_id = net_messages.UAMSG_VIEWER
-        self.my_timestamp = my_timestamp
         self.message_count = 0
+        self.my_timestamp = my_timestamp
         self.owner = 1
         self.p0 = 0x61
         self.p1 = 0
@@ -682,7 +682,7 @@ class UAMessageViewer:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<IIBBBB", self.host_id, self.launcher, self.class_id, self.view, self.vp0, self.vp1)
         return ret
@@ -691,18 +691,18 @@ class UAMessageViewer:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.host_id, self.launcher, self.class_id, self.view, self.vp0, self.vp1 = struct.unpack_from("<IIBBBB", value, 44)
 
 
 class UAMessageRequestPing:
-    def __init__(self, to_id, from_id, timestamp=0, my_timestamp=0, data=None):
+    def __init__(self, to_id, from_id, sequence_id=0, timestamp=0, my_timestamp=0, data=None):
         # data=b"02 07000000 01 10 691ecc1129000000 01 b820cc1129000000
         #        14000000 f6030000 00000000 0077450d 01 55 00 00 00000101"
         #                                                        timestamp
         self.packet_flags = net_messages.PKT_FLAG_GARANT
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 1
         self.packet_type = net_messages.USR_MSG_DATA
 
@@ -711,8 +711,8 @@ class UAMessageRequestPing:
         self.packet_to = to_id
         self.packet_payload_length = 0x14
         self.message_id = net_messages.UAMSG_REQPING
-        self.my_timestamp = my_timestamp
         self.message_count = 0
+        self.my_timestamp = my_timestamp
         self.owner = 1
         self.p0 = 0x55
         self.p1 = 0
@@ -726,7 +726,7 @@ class UAMessageRequestPing:
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
-        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
         ret += struct.pack("<I", self.timestamp)
         return ret
@@ -735,7 +735,7 @@ class UAMessageRequestPing:
     def data(self, value):
         self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
-        self.packet_payload_length, self.message_id, self.my_timestamp, self.message_count = struct.unpack_from("<IIII", value, 24)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.timestamp = struct.unpack_from("<I", value, 44)[0]
 

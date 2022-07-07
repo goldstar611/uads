@@ -75,6 +75,10 @@ def inspect(prefix, cli_address, data, from_server=False):
     channel = data[5]
     user_message = data[6]
 
+    if user_message == USR_MSG_SES_USERJOIN:
+        print("USR_MSG_SES_USERJOIN\n")
+        return
+
     if user_message == USR_MSG_SES_USERLIST:
         print("USR_MSG_SES_USERLIST: Who is in game\n")
         return
@@ -143,7 +147,7 @@ def inspect(prefix, cli_address, data, from_server=False):
             return
     
         if ua_message == UAMSG_FACTION:
-            print("UAMSG_FRACTION\n")
+            print("UAMSG_FACTION\n")
             return
     
         if ua_message == UAMSG_WELCOME:
@@ -228,7 +232,7 @@ fake_server_sock.bind(("127.0.0.1", 61234))
 while True:
     try:
         # Receive data from clients
-        data, cli_address = fake_server_sock.recvfrom(1024)
+        data, cli_address = fake_server_sock.recvfrom(1500)
 
         # TODO Inspect data from client
 
@@ -246,7 +250,7 @@ while True:
     for cli_address in client_sockets.keys():
         try:
             # Check for data from upstream server
-            data, _ = client_sockets[cli_address].recvfrom(1024)
+            data, _ = client_sockets[cli_address].recvfrom(1500)
 
             if inspect("SRV Message for CLI {}".format(cli_address), cli_address, data, from_server=True) == -1:
                 continue
