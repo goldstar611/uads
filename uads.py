@@ -141,25 +141,25 @@ class UAMPGame:
 
     def add_player(self, player_name, player_addr_port):
         remote_addr, remote_port = player_addr_port
-        player = UAMPClient(sock=self.socket, game_id=self.game_id, player_name=self.player_name_clean(player_name),
-                            remote_addr=remote_addr, remote_port=remote_port)
-        self.players[player_addr_port] = player
+        new_player = UAMPClient(sock=self.socket, game_id=self.game_id, player_name=self.player_name_clean(player_name),
+                                remote_addr=remote_addr, remote_port=remote_port)
+        self.players[player_addr_port] = new_player
 
-        player.send_packet(net_classes.NetSysConnected(client_name=player.player_name,
-                                                       client_id=player.player_id))
-        player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
-                                                         level_number=self.level_number,
-                                                         hoster_name="uads"))
+        new_player.send_packet(net_classes.NetSysConnected(client_name=new_player.player_name,
+                                                           client_id=new_player.player_id))
+        new_player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
+                                                             level_number=self.level_number,
+                                                             hoster_name="uads"))
 
+        players = {player.player_name: player.player_id for player in self.players.values()}
         for player in self.players.values():
-            players = {player.player_name: player.player_id for player in self.players.values()}
             player.send_packet(net_classes.NetUsrSessionList(players))
             player.send_packet(net_classes.UAMessageWelcome(to_id=player.player_id,
-                                                            from_id=self.game_id))
+                                                            from_id=new_player.player_id))
             player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
-                                                        from_id=self.game_id))
+                                                        from_id=new_player.player_id))
             player.send_packet(net_classes.UAMessageCD(to_id=player.player_id,
-                                                       from_id=self.game_id))
+                                                       from_id=new_player.player_id))
 
     def change_level(self, game_level_id):
         # TODO Don't change level if there are too many players already joined!
