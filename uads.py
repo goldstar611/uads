@@ -276,6 +276,7 @@ class UAMPGame:
                 pass
 
         if isinstance(packet, net_classes.NetSysDisconnected):
+            print(f"{player.player_name} has left")
             self.kick_player(player)
             return
 
