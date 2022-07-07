@@ -105,10 +105,13 @@ class UAMPGame:
         # The game is finished when no one is connected :)
         return len(self.players.keys()) == 0
 
-    @property
-    def max_players(self):
-        if self.level_number in net_games.game_owners:
-            return len(net_games.game_owners[self.level_number])
+    def max_players(self, level_number=None):
+        if level_number is None:
+            level_number = self.level_number
+
+        if level_number in net_games.game_owners:
+            return len(net_games.game_owners[level_number])
+
         return 4  # HACK for MD or custom levels
 
     def check_game(self):
@@ -162,9 +165,7 @@ class UAMPGame:
                                                        from_id=new_player.player_id))
 
     def change_level(self, game_level_id):
-        max_players = len(net_games.game_owners.get(game_level_id, [1, 1, 1, 1]))
         self.level_number = game_level_id
-        self.max_players = max_players
         for player in self.players.values():
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
@@ -175,7 +176,7 @@ class UAMPGame:
 
     def has_conflicts(self):
         # Check for too many players in game for map
-        if len(self.players.keys()) > self.max_players:
+        if len(self.players.keys()) > self.max_players():
             return "Too many players for map!"
 
         # Check that all players have correct faction for map
@@ -259,7 +260,7 @@ class UAMPGame:
                         raise ValueError()
                     if level_number > 999:
                         raise ValueError()
-                    max_players = len(net_games.game_owners.get(level_number, [1, 1, 1, 1]))
+                    max_players = self.max_players(level_number=level_number)
                     if len(self.players.keys()) > max_players:
                         player.send_message(message="Too many players for map!")
                         raise ValueError()
@@ -312,7 +313,7 @@ class UAMPGame:
             return True
 
         # If we have filled all player positions, don't accept any new players
-        return len(self.players.keys()) >= self.max_players
+        return len(self.players.keys()) >= self.max_players()
 
 
 def switch_packet(packet, player_addr_port, games, sock):
