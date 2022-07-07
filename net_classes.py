@@ -1,5 +1,4 @@
 import struct
-import time
 
 import net_messages
 
@@ -139,11 +138,11 @@ class NetSysDisconnected:
 
 
 class NetSysPing:
-    def __init__(self, sequence_id=None, data=None):
+    def __init__(self, sequence_id=0, data=None):
         # data=b"80 05 01000000"
         self.packet_flags = net_messages.PKT_FLAG_SYSTEM
         self.packet_type = net_messages.SYS_MSG_PING
-        self.sequence_id = sequence_id if sequence_id is not None else  0
+        self.sequence_id = sequence_id
         if data:
             self.data = data
 
@@ -814,7 +813,7 @@ def data_to_class(data):
 
             if ua_message == net_messages.UAMSG_VHCLDATA_I:
                 # send vehicle data updates such as location
-                #print("UAMSG_VHCLDATA_I\n")
+                # print("UAMSG_VHCLDATA_I\n")
                 return Generic(msg_type="UAMSG_VHCLDATA_I", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_DEAD:
