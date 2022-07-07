@@ -126,7 +126,18 @@ class UAMPGame:
                 self.kick_player(player)
                 self.message_all_players(f"{player.player_name} has been kicked from game")
 
+    def kick_player_by_index(self, i):
+        player_list = list(self.players.values())
+        if i > len(player_list):
+            return False
+
+        player = player_list[i-1]
+        player_name = player.player_name
+        self.kick_player(player)
+        return player_name
+
     def kick_player(self, player):
+        player.send_message(message="You have been kicked from the server.")
         player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
 
@@ -259,6 +270,16 @@ class UAMPGame:
             if packet.message == "!start":
                 print(f"{player.player_name} has started the game")
                 self.start_game()
+                return
+
+            if packet.message.startswith("!kick"):
+                i = int(packet.message[5:])
+                print(f"{player.player_name} wants to kick player index {i}")
+                kicked = self.kick_player_by_index(i)
+                if kicked:
+                    player.send_message(message=f"Kicked player {kicked}")
+                else:
+                    player.send_message(message=f"Couldn't kick player {i}!")
                 return
 
             if packet.message.startswith("!level"):
