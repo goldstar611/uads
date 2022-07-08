@@ -27,8 +27,7 @@ class UAMPClient:
         self.is_host = False
         self.faction = net_games.faction_resistance
         self.crc = None  # The reported checksum of game files on disk
-        self.ready = None  # If the player is ready or not
-        self.cd = None  # If the player has a CD or not
+        self.ready = None  # If the player is ready
         self.player_id = player_id or ((random.randrange(2**32) << 16) + 0xBBBB) | 0xAAAA000000000000
 
     def should_ping(self):
