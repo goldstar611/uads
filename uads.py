@@ -251,6 +251,11 @@ class UAMPGame:
             self.message_all_players(message=conflicts)
             return False
 
+        # Check that all players are ready
+        if not all([player.ready for player in self.players.values()]):
+            self.message_all_players(message="All players ready up to start game!")
+            return False
+
         self.game_started = True
         self.game_start_time = int(time.time())
 
@@ -280,6 +285,10 @@ class UAMPGame:
         if player.should_ping():
             player.send_ping(game_started=self.game_started,
                              time_stamp=self.time_stamp)
+
+        if isinstance(packet, net_classes.UAMessageReady):
+            player.ready = packet.ready
+            # noreturn
 
         if isinstance(packet, net_classes.UAMessageMessage):
             print(f"New message: {packet.message}")
