@@ -470,10 +470,10 @@ class UAMessageCD:
             self.data = data
 
     def __repr__(self):
-        return f'<UAMessageCD(user_id="{self.packet_from}", user_name="{self.packet_from}", ' \
+        return f'<UAMessageCD(user_id="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
                f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
                f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
-               f'p1="{self.p1}", p2="{self.p2}", cd="{self.ready}", cd="{self.ready}", ' \
+               f'p1="{self.p1}", p2="{self.p2}", ready="{self.ready}", cd="{self.cd}", ' \
                f'cd_p0="{self.cd_p0}", cd_p1="{self.cd_p1}")>'
 
     @property
