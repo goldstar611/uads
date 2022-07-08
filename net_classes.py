@@ -308,12 +308,11 @@ class NetUsrDisconnect:
 
 
 class NetUsrJoin:
-
-    def __init__(self, client_name, client_id, data=None):
+    def __init__(self, client_name, client_id, sequence_id=0, data=None):
         # data=b"00 04000000 00 40 48b80105da4a0200 08 556e6e616d656433"
         #                                              U n n a m e d 3
         self.packet_flags = net_messages.PKT_FLAG_NONE
-        self.sequence_id = 0
+        self.sequence_id = sequence_id
         self.channel = 0
         self.packet_type = net_messages.USR_MSG_SES_USERJOIN
 
