@@ -364,7 +364,7 @@ class UAMessageWelcome:
         self.p2 = 0
 
         self.faction = faction
-        self.ready = 1
+        self.ready = 0
         self.cd = 1
         if data:
             self.data = data
@@ -463,7 +463,7 @@ class UAMessageCD:
         self.p2 = 0
 
         self.cd = 1
-        self.ready = 1
+        self.ready = 255
         self.cd_p0 = 1
         self.cd_p1 = 1
         if data:
