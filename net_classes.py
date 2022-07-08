@@ -199,7 +199,7 @@ class NetSysSessionJoin:
 
     @data.setter
     def data(self, value):
-        self.always_one, self.game_id, self.level_number = struct.unpack_from("<BBQ", value, 2)
+        self.always_one, self.game_id = struct.unpack_from("<BQ", value, 2)
         id_server_name_build_date = value[12:].decode()
         level_id, self.server_name, self.build_date = id_server_name_build_date.split("|")
         self.level_number = int(level_id)
