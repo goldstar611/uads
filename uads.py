@@ -174,8 +174,6 @@ class UAMPGame:
                                                              level_number=self.level_number,
                                                              hoster_name="uads"))
 
-        new_player.send_message("To start game enter !start")
-
         players = {player.player_name: player.player_id for player in self.players.values()}
         for player in self.players.values():
             player.send_packet(net_classes.NetUsrSessionList(users=players,
