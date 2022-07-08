@@ -177,7 +177,7 @@ class NetSysSessionJoin:
         # data=b"80 40 01 b820cc1129000000 20 93|Unnamed|JUL 09 1988  23:52:47"
         self.packet_flags = net_messages.PKT_FLAG_SYSTEM
         self.packet_type = net_messages.SYS_MSG_SES_JOIN
-        self.always_one = 1
+        self.leader = 0
         self.game_id = game_id
         self.level_number = level_number
         self.server_name = hoster_name
@@ -186,12 +186,12 @@ class NetSysSessionJoin:
             self.data = data
 
     def __repr__(self):
-        return f'<NetSysSessionJoin(always_one="{self.always_one}", game_id="{self.game_id}, ' \
+        return f'<NetSysSessionJoin(leader="{self.leader}", game_id="{self.game_id}, ' \
                f'level_number={self.level_number}, server_name={self.server_name}, build_date={self.build_date}")>'
 
     @property
     def data(self):
-        ret = struct.pack("<BBB", self.packet_flags, self.packet_type, self.always_one)
+        ret = struct.pack("<BBB", self.packet_flags, self.packet_type, self.leader)
         id_server_name_build_date = f"{self.level_number}|{self.server_name}|{self.build_date}"
         ret += struct.pack("<QB", self.game_id, len(id_server_name_build_date))
         ret += id_server_name_build_date.encode()
@@ -199,7 +199,7 @@ class NetSysSessionJoin:
 
     @data.setter
     def data(self, value):
-        self.always_one, self.game_id = struct.unpack_from("<BQ", value, 2)
+        self.leader, self.game_id = struct.unpack_from("<BQ", value, 2)
         id_server_name_build_date = value[12:].decode()
         level_id, self.server_name, self.build_date = id_server_name_build_date.split("|")
         self.level_number = int(level_id)
