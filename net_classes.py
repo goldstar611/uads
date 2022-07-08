@@ -179,6 +179,8 @@ class NetSysSessionJoin:
         self.packet_type = net_messages.SYS_MSG_SES_JOIN
         self.leader = 0
         self.game_id = game_id
+        # TODO Keep an eye on password being used here
+        # https://github.com/Marisa-Chan/UA_source/blob/9b205a639b1043b230e1ed8fc81f567bb06c7eb7/src/netlib/server.cpp#L228
         self.level_number = level_number
         self.server_name = hoster_name
         self.build_date = "JUL 09 1998  23:52:47"
