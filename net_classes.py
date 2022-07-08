@@ -221,7 +221,7 @@ class NetSysSessionClose:
 
     @data.setter
     def data(self, value):
-        self.close_time,  = struct.unpack_from("<I", value, 2)[0]
+        self.close_time = struct.unpack_from("<I", value, 2)[0]
 
 
 class NetSysSessionLead:
