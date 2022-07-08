@@ -394,6 +394,61 @@ class UAMessageWelcome:
         self.faction, self.ready, self.cd = struct.unpack_from("<HBB", value, 44)
 
 
+class UAMessageReady:
+    def __init__(self, to_id, from_id, sequence_id=3, data=None):
+        # data=b'02 16000000 01 10 bbbbfd37c8a3aaaa 01 c9ec98ee6be20000 14000000 ff030000 20420200 01000000 00 00 00 00 00 00 00 00'
+        # data=b'02 15000000 01 10 bbbbfd37c8a3aaaa 01 c9ec98ee6be20000 14000000 ff030000 20420200 00000000 00 00 00 00 01 00 00 00'
+
+        self.packet_flags = net_messages.PKT_FLAG_GARANT
+        self.sequence_id = sequence_id
+        self.channel = 1
+        self.packet_type = net_messages.USR_MSG_DATA
+
+        self.packet_from = from_id
+        self.packet_cast = 1
+        self.packet_to = to_id
+        self.packet_payload_length = 0x14
+        self.message_id = net_messages.UAMSG_READY
+
+        self.message_count = 0
+        self.my_timestamp = 0
+        self.owner = 0
+        self.p0 = 0
+        self.p1 = 0
+        self.p2 = 0
+
+        self.ready = 0
+        self.rp0 = 0
+        self.rp1 = 0
+        self.rp2 = 0
+        if data:
+            self.data = data
+
+    def __repr__(self):
+        return f'<UAMessageReady(packet_from="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
+               f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", ' \
+               f'p1="{self.p1}", p2="{self.p2}", ready="{self.ready}", ' \
+               f'rp0="{self.rp0}", rp1="{self.rp1}", rp2="{self.rp2}")>'
+
+    @property
+    def data(self):
+        ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
+        ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
+        ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
+        ret += struct.pack("<BBBB", self.ready, self.rp0, self.rp1, self.rp2)
+        return ret
+
+    @data.setter
+    def data(self, value):
+        self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
+        self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
+        self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
+        self.ready, self.rp0, self.rp1, self.rp2 = struct.unpack_from("<BBBB", value, 44)
+
+
 class UAMessageCRC:
     def __init__(self, to_id, from_id, sequence_id=3, data=None):
         # data=b"02 02000000 01 10 691ecc1129000000 00 b820cc1129000000 14000000 0d040000 00000000 b0a187d5 00 55 00 00 2ab4c182"
@@ -933,7 +988,7 @@ def data_to_class(data):
 
             if ua_message == net_messages.UAMSG_READY:
                 print("UAMSG_READY\n")
-                return Generic(msg_type="UAMSG_READY", data=data)  # TODO FIXME
+                return UAMessageReady(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_REQUPDATE:
                 print("UAMSG_REQUPDATE\n")
