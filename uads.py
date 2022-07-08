@@ -28,7 +28,7 @@ class UAMPClient:
         self.faction = net_games.faction_resistance
         self.crc = None  # The reported checksum of game files on disk
         self.ready = None  # If the player is ready
-        self.player_id = player_id or ((random.randrange(2**32) << 16) + 0xBBBB) | 0xAAAA000000000000
+        self.player_id = player_id or ((random.randrange(2 ** 32) << 16) + 0xBBBB) | 0xAAAA000000000000
 
     def should_ping(self):
         if int(time.time()) - self.last_ping_time > 2:
@@ -47,7 +47,7 @@ class UAMPClient:
             ping = net_classes.UAMessageRequestPing(to_id=self.player_id,
                                                     from_id=self.game_id,
                                                     sequence_id=self.next_pkt_seq(),
-                                                    my_timestamp=time_stamp,)
+                                                    my_timestamp=time_stamp)
             self.send_packet(ping)
 
         # print("Sending NetSysPing")
@@ -138,7 +138,7 @@ class UAMPGame:
         if i > len(player_list):
             return False
 
-        player = player_list[i-1]
+        player = player_list[i - 1]
         player_name = player.player_name
         self.kick_player(player)
         return player_name
@@ -196,10 +196,10 @@ class UAMPGame:
             new_player.send_packet(net_classes.UAMessageWelcome(to_id=new_player.player_id,
                                                                 from_id=player.player_id,
                                                                 sequence_id=new_player.next_pkt_seq()))
-            #player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
+            # player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
             #                                            from_id=new_player.player_id,
             #                                            sequence_id=player.next_pkt_seq()))
-            #player.send_packet(net_classes.UAMessageCD(to_id=self.game_id,
+            # player.send_packet(net_classes.UAMessageCD(to_id=self.game_id,
             #                                           from_id=new_player.player_id,
             #                                           sequence_id=player.next_pkt_seq()))
 
