@@ -80,6 +80,9 @@ class NetSysHandshake:
         if data:
             self.data = data
 
+    def __repr__(self):
+        return f'<NetSysHandshake(network_name="{self.network_name}", client_name="{self.client_name}")>'
+
     @property
     def data(self):
         ret = struct.pack("<BBBB", self.packet_flags, self.packet_type, len(self.network_name), len(self.client_name))
@@ -104,6 +107,9 @@ class NetSysConnected:
         self.user_name = client_name
         if data:
             self.data = data
+
+    def __repr__(self):
+        return f'<NetSysConnected(client_name="{self.user_name}", client_id="{self.user_id}")>'
 
     @property
     def data(self):
@@ -179,6 +185,10 @@ class NetSysSessionJoin:
         if data:
             self.data = data
 
+    def __repr__(self):
+        return f'<NetSysSessionJoin(always_one="{self.always_one}", game_id="{self.game_id}, ' \
+               f'level_number={self.level_number}, server_name={self.server_name}, build_date={self.build_date}")>'
+
     @property
     def data(self):
         ret = struct.pack("<BBB", self.packet_flags, self.packet_type, self.always_one)
@@ -245,6 +255,9 @@ class NetUsrSessionList:
         if data:
             self.data = data
 
+    def __repr__(self):
+        return f'<NetUsrSessionList(users="{self.users}")>'
+
     @property
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
@@ -310,6 +323,9 @@ class NetUsrJoin:
         if data:
             self.data = data
 
+    def __repr__(self):
+        return f'<NetUsrJoin(user_id="{self.user_id}", user_name="{self.user_name}")>'
+
     @property
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
@@ -352,6 +368,13 @@ class UAMessageWelcome:
         if data:
             self.data = data
 
+    def __repr__(self):
+        return f'<UAMessageWelcome(packet_from="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
+               f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
+               f'p1="{self.p1}", p2="{self.p2}", faction="{self.faction}", )>' \
+               f'ready="{self.ready}", cd="{self.cd}")>'
+
     @property
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
@@ -393,6 +416,12 @@ class UAMessageCRC:
         self.checksum = struct.unpack("<I", b"\x2a\xb4\xc1\x82")[0]
         if data:
             self.data = data
+
+    def __repr__(self):
+        return f'<UAMessageCRC(packet_from="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
+               f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
+               f'p1="{self.p1}", p2="{self.p2}", checksum="{self.checksum}")>'
 
     @property
     def data(self):
@@ -439,6 +468,13 @@ class UAMessageCD:
         if data:
             self.data = data
 
+    def __repr__(self):
+        return f'<UAMessageCD(user_id="{self.packet_from}", user_name="{self.packet_from}", ' \
+               f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
+               f'p1="{self.p1}", p2="{self.p2}", cd="{self.ready}", cd="{self.ready}", ' \
+               f'cd_p0="{self.cd_p0}", cd_p1="{self.cd_p1}")>'
+
     @property
     def data(self):
         ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
@@ -481,6 +517,12 @@ class UAMessageFaction:
         self.old = 1
         if data:
             self.data = data
+
+    def __repr__(self):
+        return f'<UAMessageFaction(user_id="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
+               f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
+               f'p1="{self.p1}", p2="{self.p2}", new="{self.new}", old="{self.old}")>'
 
     @property
     def data(self):
