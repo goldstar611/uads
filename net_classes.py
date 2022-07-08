@@ -372,8 +372,8 @@ class UAMessageWelcome:
     def __repr__(self):
         return f'<UAMessageWelcome(packet_from="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
                f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
-               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
-               f'p1="{self.p1}", p2="{self.p2}", faction="{self.faction}", )>' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", ' \
+               f'p1="{self.p1}", p2="{self.p2}", faction="{self.faction}", ' \
                f'ready="{self.ready}", cd="{self.cd}")>'
 
     @property
@@ -476,7 +476,7 @@ class UAMessageCRC:
     def __repr__(self):
         return f'<UAMessageCRC(packet_from="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
                f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
-               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", ' \
                f'p1="{self.p1}", p2="{self.p2}", checksum="{self.checksum}")>'
 
     @property
@@ -527,7 +527,7 @@ class UAMessageCD:
     def __repr__(self):
         return f'<UAMessageCD(user_id="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
                f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
-               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", ' \
                f'p1="{self.p1}", p2="{self.p2}", ready="{self.ready}", cd="{self.cd}", ' \
                f'cd_p0="{self.cd_p0}", cd_p1="{self.cd_p1}")>'
 
@@ -577,7 +577,7 @@ class UAMessageFaction:
     def __repr__(self):
         return f'<UAMessageFaction(user_id="{self.packet_from}", packet_cast="{self.packet_cast}", ' \
                f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
-               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", )>' \
+               f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", ' \
                f'p1="{self.p1}", p2="{self.p2}", new="{self.new}", old="{self.old}")>'
 
     @property
