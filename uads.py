@@ -24,6 +24,7 @@ class UAMPClient:
         self.game_id = game_id
 
         self.player_name = player_name
+        self.is_host = False
         self.faction = net_games.faction_resistance
         self.crc = None  # The reported checksum of game files on disk
         self.ready = None  # If the player is ready or not
@@ -79,6 +80,12 @@ class UAMPClient:
                                            sequence_id=self.next_pkt_seq(),
                                            message=message)
         self.send_packet(pkt)
+
+    def make_host(self):
+        self.is_host = True
+        self.send_message("You are the host.")
+        self.send_message("Type !level100 to change levels.")
+        self.send_message("Type !start to start the game.")
 
 
 class UAMPGame:
@@ -143,6 +150,10 @@ class UAMPGame:
             player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
 
+        if player.is_host and self.num_players > 0:
+            next_host = next(iter(self.players.values()))
+            next_host.make_host()
+
         player_left_message = net_classes.NetUsrDisconnect(player_id=player.player_id,
                                                            sequence_id=player.next_pkt_seq())
         for player in self.players.values():
@@ -173,6 +184,8 @@ class UAMPGame:
         new_player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
                                                              hoster_name="uads"))
+        if self.num_players == 1:
+            new_player.make_host()
 
         players = {player.player_name: player.player_id for player in self.players.values()}
         for player in self.players.values():
@@ -274,16 +287,16 @@ class UAMPGame:
                 print(f"{player.player_name} has restarted the server")
                 raise RestartServer()
 
-            if packet.message == "!start":
+            if player.is_host and packet.message == "!start":
                 print(f"{player.player_name} has started the game")
                 self.start_game()
                 return
 
-            if packet.message.startswith("!gameid"):
+            if player.is_host and packet.message.startswith("!gameid"):
                 player.send_message(f"Game ID: {self.game_id}")
                 return
 
-            if packet.message.startswith("!lock"):
+            if player.is_host and packet.message.startswith("!lock"):
                 self.game_locked = True
                 player.send_message(f"Game locked. No new players can join.")
                 return
@@ -313,12 +326,12 @@ class UAMPGame:
                         new_player = game.add_player(player_name, player_addr_port, player_id)
                 return
 
-            if packet.message.startswith("!unlock"):
+            if player.is_host and packet.message.startswith("!unlock"):
                 self.game_locked = False
                 player.send_message(f"Game unlocked. Allowing new players.")
                 return
 
-            if packet.message.startswith("!kick"):
+            if player.is_host and packet.message.startswith("!kick"):
                 print(f"{player.player_name} wants to kick player index {packet.message[5:]}")
                 try:
                     i = int(packet.message[5:])
@@ -331,7 +344,7 @@ class UAMPGame:
                     player.send_message(message=f"Couldn't kick player {i}!")
                 return
 
-            if packet.message.startswith("!level"):
+            if player.is_host and packet.message.startswith("!level"):
                 print(f"{player.player_name} wants to change level to {packet.message[6:]}")
                 try:
                     level_number = int(packet.message[6:])
