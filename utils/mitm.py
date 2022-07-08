@@ -235,7 +235,9 @@ def inspect(prefix, cli_address, data, from_server=False):
     
         if ua_message == UAMSG_CD:
             # spammy
-            # print("UAMSG_CD\n")
+            cls = UAMessageCD(from_id=None, to_id=None, data=data)
+            print(cls)
+            print("UAMSG_CD\n")
             return
     
         if ua_message == UAMSG_SCORE:
@@ -262,7 +264,7 @@ while True:
             print("New client {}".format(cli_address))
             client_sockets[cli_address] = new_client_socket()
 
-        if inspect("CLI {} Message".format(cli_address), cli_address, data) != -1:
+        if inspect("FROM CLI {}".format(cli_address), cli_address, data) != -1:
             # Send the data upstream
             client_sockets[cli_address].sendto(data, (upstream_server_ip, upstream_server_port))
     except socket.error as e:
@@ -273,7 +275,7 @@ while True:
             # Check for data from upstream server
             data, _ = client_sockets[cli_address].recvfrom(1500)
 
-            if inspect("SRV Message for CLI {}".format(cli_address), cli_address, data, from_server=True) == -1:
+            if inspect("From SRV to CLI {}".format(cli_address), cli_address, data, from_server=True) == -1:
                 continue
 
             # Send data to correct client
