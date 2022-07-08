@@ -1,10 +1,10 @@
 import binascii
-import socket
 import fcntl
 import os
+import socket
 
-from net_messages import *
 from net_classes import *
+from net_messages import *
 
 # Client code
 upstream_server_ip = "127.0.0.1"
