@@ -196,7 +196,7 @@ class UAMPGame:
                                                             sequence_id=player.next_pkt_seq()))
             new_player.send_packet(net_classes.UAMessageWelcome(to_id=new_player.player_id,
                                                                 from_id=player.player_id,
-                                                                sequence_id=player.next_pkt_seq()))
+                                                                sequence_id=new_player.next_pkt_seq()))
             #player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
             #                                            from_id=new_player.player_id,
             #                                            sequence_id=player.next_pkt_seq()))
@@ -292,11 +292,11 @@ class UAMPGame:
                 self.start_game()
                 return
 
-            if player.is_host and packet.message.startswith("!gameid"):
+            if player.is_host and packet.message == ("!gameid"):
                 player.send_message(f"Game ID: {self.game_id}")
                 return
 
-            if player.is_host and packet.message.startswith("!lock"):
+            if player.is_host and packet.message == ("!lock"):
                 self.game_locked = True
                 player.send_message(f"Game locked. No new players can join.")
                 return
