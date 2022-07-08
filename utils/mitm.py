@@ -32,37 +32,44 @@ def inspect(prefix, cli_address, data, from_server=False):
         system_message = data[1]
 
         if system_message == SYS_MSG_HANDSHAKE:
-            cls = NetSysHandshake(data)
+            cls = NetSysHandshake(client_name=None, data=data)
+            print(cls)
             print("SYS_MSG_HANDSHAKE: Client join request\n")
             return
 
         if system_message == SYS_MSG_CONNECTED:
             cls = NetSysConnected(client_id=None, client_name=None, data=data)
+            print(cls)
             print("SYS_MSG_CONNECTED: Client join\n")
             return
 
         if system_message == SYS_MSG_DISCONNECT:
-            cls = NetSysDisconnected(data)
+            cls = NetSysDisconnected(data=data)
+            print(prefix)
+            print(binascii.hexlify(data))
             print("SYS_MSG_DISCONNECT: Client leave\n")
             return
 
         if system_message == SYS_MSG_PING:
-            cls = NetSysPing(data)
-            print("SYS_MSG_PING\n")
+            cls = NetSysPing(data=data)
+            #print("SYS_MSG_PING\n")
             return
 
         if system_message == SYS_MSG_DELIVERED:
-            cls = NetSysDelivered(data)
-            print("SYS_MSG_DELIVERED\n")
+            cls = NetSysDelivered(data=data)
+            #print("SYS_MSG_DELIVERED\n")
             return
 
         if system_message == SYS_MSG_SES_JOIN:
             cls = NetSysSessionJoin(game_id=None, hoster_name=None, level_number=None, data=data)
+            print(cls)
             print("SYS_MSG_SES_JOIN: Level Select Message\n")
             return
 
         if system_message == SYS_MSG_SES_CLOSE:  # Host sends this message when it closes the server
-            cls = NetSysSessionClose(data)
+            cls = NetSysSessionClose(data=data)
+            print(prefix)
+            print(binascii.hexlify(data))
             print("SYS_MSG_SES_CLOSE: Socket closed\n")
             return
 
@@ -76,10 +83,14 @@ def inspect(prefix, cli_address, data, from_server=False):
     user_message = data[6]
 
     if user_message == USR_MSG_SES_USERJOIN:
+        cls = NetUsrJoin(client_name=None, client_id=None, data=data)
+        print(cls)
         print("USR_MSG_SES_USERJOIN\n")
         return
 
     if user_message == USR_MSG_SES_USERLIST:
+        cls = NetUsrSessionList(users=None, data=data)
+        print(cls)
         print("USR_MSG_SES_USERLIST: Who is in game\n")
         return
 
@@ -143,18 +154,26 @@ def inspect(prefix, cli_address, data, from_server=False):
             return
 
         if ua_message == UAMSG_MESSAGE:  # When someone sends a message
+            print(prefix)
+            print(binascii.hexlify(data))
             print("UAMSG_MESSAGE\n")
             return
     
         if ua_message == UAMSG_FACTION:
+            cls = UAMessageFaction(from_id=None, to_id=None, data=data)
+            print(cls)
             print("UAMSG_FACTION\n")
             return
     
         if ua_message == UAMSG_WELCOME:
+            cls = UAMessageWelcome(from_id=None, to_id=None, data=data)
+            print(cls)
             print("UAMSG_WELCOME\n")
             return
     
         if ua_message == UAMSG_READY:
+            print(prefix)
+            print(binascii.hexlify(data))
             print("UAMSG_READY\n")
             return
     
@@ -199,6 +218,8 @@ def inspect(prefix, cli_address, data, from_server=False):
             return
     
         if ua_message == UAMSG_CRC:
+            cls = UAMessageCRC(from_id=None, to_id=None, data=data)
+            print(cls)
             print("UAMSG_CRC\n")
             return
     
@@ -214,7 +235,7 @@ def inspect(prefix, cli_address, data, from_server=False):
     
         if ua_message == UAMSG_CD:
             # spammy
-            print("UAMSG_CD\n")
+            # print("UAMSG_CD\n")
             return
     
         if ua_message == UAMSG_SCORE:
