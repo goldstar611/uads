@@ -172,8 +172,8 @@ def inspect(prefix, cli_address, data, from_server=False):
             return
     
         if ua_message == UAMSG_READY:
-            print(prefix)
-            print(binascii.hexlify(data))
+            cls = UAMessageReady(from_id=None, to_id=None, data=data)
+            print(cls)
             print("UAMSG_READY\n")
             return
     
