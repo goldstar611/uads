@@ -187,7 +187,7 @@ class UAMPGame:
             player.send_packet(net_classes.UAMessageCRC(to_id=player.player_id,
                                                         from_id=new_player.player_id,
                                                         sequence_id=player.next_pkt_seq()))
-            player.send_packet(net_classes.UAMessageCD(to_id=player.player_id,
+            player.send_packet(net_classes.UAMessageCD(to_id=self.game_id,
                                                        from_id=new_player.player_id,
                                                        sequence_id=player.next_pkt_seq()))
 
