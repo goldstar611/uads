@@ -112,7 +112,7 @@ class UAMPGame:
     @property
     def game_finished(self):
         # The game is finished when no one is connected :)
-        return len(self.players.keys()) == 0
+        return self.num_players == 0
 
     @property
     def num_players(self):
