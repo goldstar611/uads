@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build a synthetic 636-byte flush datagram for testing split_usr_data:
-VIEWER(28) + BUILDINGVHCL(272) + zero padding + SYNCGM(52) + trailing bytes,
+VIEWER(28) + BUILDINGVHCL(528) + SYNCGM(52),
 matching the layout observed in the real uads log."""
 import struct
 

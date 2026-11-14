@@ -152,3 +152,23 @@ szStr name`), USERLEAVE (`id u64 | type u8`), USERLIST (count u32 + per-user
 Faction values (owner bits 2/8/16/64 for Resistance/Mykonian/Taerkasten/Ghorkov)
 match `World::OWNER_*_BIT` in the current engine. Session name `level|host|date`
 parsing matches `windp.cpp:1167-1179`.
+
+## 15. VHCLDATA wire format changed: 32-bit positions (fork-only)
+
+The vanilla `vhcldata` struct carried positions as `int16_t` with a ÷2
+encode/×2 decode scale, which silently truncated for `|pos| > 65534`
+(≈54 sectors at CVSectorLength=1200) — units teleported on long maps.
+An upstream interim fix (`(int16_t)(pos/4)` / ×4) was also reverted.
+
+Fork change (UA_source `f6bf350`): `pos_x/pos_y/pos_z` are now `int32_t`,
+encoded exactly (`(int32_t)pos`), decoded exactly (no scale). New entry
+sizes: `vhcldata` = 28 B (2 pad bytes before `ident`), `vhcldataE` = 56 B.
+`uamessage_vhclData` base stays 24 B; `vhcldatahdr.size` (sender-computed)
+still describes the full message.
+
+- Both engine peers must run the fork build (wire format change; vanilla
+  peers would render positions wrong — they are already broken on long
+  maps anyway).
+- uads needs NO change: the splitter reads the declared `hdr.size`
+  (see section 12), verified with synthetic 28-byte-entry datagrams.
+- `static_assert`s in yw_net.h now guard the wire sizes at compile time.
