@@ -33,6 +33,7 @@ class UAMPClient:
         self.game_id = game_id
 
         self.player_name = player_name
+        self.orig_name = player_name  # handshake name as the client knows itself
         self.is_host = False
         self.faction = net_games.faction_resistance
         self.crc = None  # The reported checksum of game files on disk
@@ -44,9 +45,15 @@ class UAMPClient:
             return True
         return False
 
-    def should_kick(self):
+    def should_kick(self, game_started=False):
         if int(time.time()) - self.last_packet_time > 10:
-            return True
+            # A client that has entered a running game always streams
+            # VHCLDATA, so 10s of silence means it is gone. But a client
+            # that is still LOADING is legitimately silent for a long time
+            # (the engine waits up to ~150s for slow loaders) - kicking it
+            # mid-load would yank it out of the game and leave the others
+            # staring at a net-problem icon.
+            return game_started
         return False
 
     def send_ping(self, game_started, time_stamp):
@@ -158,7 +165,7 @@ class UAMPGame:
             if player.should_ping():
                 player.send_ping(game_started=self.game_started,
                                  time_stamp=self.time_stamp)
-            if player.should_kick():
+            if player.should_kick(game_started=self.game_started):
                 self.kick_player(player)
                 self.message_all_players(f"{player.player_name} has been kicked from game")
 
@@ -172,9 +179,26 @@ class UAMPGame:
         self.kick_player(player)
         return player_name
 
+    def _owner_index(self, player):
+        # Engine owner index (1/3/4/6) from the faction owner bit
+        # (2/8/16/64 = 1 << owner).
+        return player.faction.bit_length() - 1 if player.faction else 0
+
     def kick_player(self, player, reconnecting=False):
-        player.send_message(message="You have been kicked from the server.")
+        leaver_name = player.player_name
+        leaver_owner = self._owner_index(player)
+
         if not reconnecting:
+            # UAMSG_KICK with the player's own name is the engine's game-end
+            # signal: yw_net.cpp aborts the running game (netProblem=3 with
+            # a status message, 10s countdown) when the text matches the
+            # receiver's own netPlayerName. A bare SYS_MSG_DISCONNECT only
+            # stops the net thread - the game would keep running. The text
+            # must be the client's HANDSHAKE name (all clients may connect
+            # as "Unnamed"), not uads' uniquified name.
+            player.send_packet(net_classes.UAMessageKick(
+                to_id=player.player_id, from_id=self.game_id,
+                text=player.orig_name))
             player.send_packet(net_classes.NetSysDisconnected())
         self.players.pop((player.remote_addr, player.remote_port))
 
@@ -182,10 +206,39 @@ class UAMPGame:
             next_host = next(iter(self.players.values()))
             next_host.make_host()
 
+        # Vanilla's "Ghorkovs have left the game": when a player's robo
+        # dies (any cause, incl. quitting a net game) the engine broadcasts
+        # UAMSG_HOSTDIE (yparobo.cpp Die); every remaining client then kills
+        # the leaver's units, cleans targeting and plays the per-faction
+        # "have left the game" voice feedback (yw_net.cpp MsgID 87/88/89/90).
+        # A quitting client does not reliably broadcast this itself, and
+        # uads games have no real engine host, so uads synthesizes it here.
+        if self.game_started:
+            print(f"Broadcasting hostDie for {leaver_name} (owner {leaver_owner}) "
+                  f"to {self.num_players} remaining players")
+            for p in self.players.values():
+                p.send_packet(net_classes.UAMessageHostDie(
+                    to_id=p.player_id, from_id=self.game_id,
+                    owner=leaver_owner))
+
+        # A started game that is down to its last client is over: kick the
+        # last standing player so they don't keep playing alone. Do this
+        # after the HOSTDIE broadcast above - after the recursive kick the
+        # remaining set is empty and there is nobody left to notify.
+        if self.game_started and self.num_players == 1:
+            last = next(iter(self.players.values()))
+            print(f"{last.player_name} is the last player left - ending the game")
+            self.kick_player(last)
+            return
+
+        # NOTE: `player` is the leaver here - do not shadow it with the
+        # broadcast loops below (that sent the wrong player's ID and the
+        # peers erased the wrong user from their tracking tables).
         player_left_message = net_classes.NetUsrDisconnect(player_id=player.player_id,
                                                            sequence_id=player.next_pkt_seq())
-        for player in self.players.values():
-            player.send_packet(player_left_message)
+        print(f"USERLEAVE: {leaver_name} (orig {player.orig_name}) id={player.player_id:#x}")
+        for p in self.players.values():
+            p.send_packet(player_left_message)
 
     def kick_all_players(self):
         for player in self.players.copy().values():
@@ -205,6 +258,10 @@ class UAMPGame:
         remote_addr, remote_port = player_addr_port
         new_player = UAMPClient(sock=self.socket, game_id=self.game_id, player_name=self.player_name_clean(player_name),
                                 remote_addr=remote_addr, remote_port=remote_port, player_id=player_id)
+        # The engine clients compare UAMSG_KICK text against their OWN
+        # netPlayerName - the name they sent in the handshake, NOT the
+        # uniquified name uads displays. Keep the original for that.
+        new_player.orig_name = player_name
         self.players[player_addr_port] = new_player
 
         new_player.send_packet(net_classes.NetSysConnected(client_name=new_player.player_name,
@@ -225,6 +282,7 @@ class UAMPGame:
             new_player.make_host()
 
         players = {player.player_name: player.player_id for player in self.players.values()}
+        print(f"SessionList: " + ", ".join(f"{n}={i:#x}" for n, i in players.items()))
         for player in self.players.values():
             player.send_packet(net_classes.NetUsrSessionList(users=players,
                                                              sequence_id=player.next_pkt_seq()))

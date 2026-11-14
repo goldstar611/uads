@@ -274,7 +274,10 @@ class NetSysSessionLead:
 class NetUsrSessionList:
     def __init__(self, users, sequence_id=1, data=None):
         # data=b"00 01000000 00 42 02000000 691ecc1129000000 07 Unnamed 57a58b042c000000 0c Unnamed.1883"
-        self.packet_flags = net_messages.PKT_FLAG_NONE
+        # GARANT: this datagram defines the engine's ID->name user table;
+        # losing it (plain UDP) leaves clients with a stale table from an
+        # earlier session, and every later USERLEAVE silently misses.
+        self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = sequence_id
         self.channel = 0
         self.packet_type = net_messages.USR_MSG_SES_USERLIST
@@ -718,6 +721,109 @@ class UAMessageLoadGame:
         self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
         self.level_number = struct.unpack_from("<I", value, 44)[0]
+
+
+class UAMessageKick:
+    def __init__(self, to_id, from_id, sequence_id=0, text="", my_timestamp=0, data=None):
+        # uamessage_kick = base(16) + text[64] = 80 bytes.
+        # Engine (yw_net.cpp UAMSG_KICK): if text matches the receiver's own
+        # netPlayerName the game aborts (netProblem=3, 10s countdown with
+        # status message); otherwise it destroys that named player.
+        # Directed cast=0: the engine netlib only accepts USR data when
+        # (cast==0 && to == own connection id) or (cast==1 && to == sesID).
+        self.packet_flags = net_messages.PKT_FLAG_GARANT
+        self.sequence_id = sequence_id
+        self.channel = 1
+        self.packet_type = net_messages.USR_MSG_DATA
+
+        self.packet_from = from_id
+        self.packet_cast = 0
+        self.packet_to = to_id
+        self.packet_payload_length = 80
+        self.message_id = net_messages.UAMSG_KICK
+        self.message_count = 0
+        self.my_timestamp = my_timestamp
+        self.owner = 0
+        self.p0 = 0
+        self.p1 = 0
+        self.p2 = 0
+
+        self.text = text
+        if data:
+            self.data = data
+
+    @property
+    def data(self):
+        text = bytearray(64)
+        text_len = min(len(self.text), 64)
+        text[:text_len] = self.text[:text_len].encode()
+
+        ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
+        ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
+        ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
+        ret += text
+        return ret
+
+    @data.setter
+    def data(self, value):
+        self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
+        self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
+        self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
+        self.text = value[44:].decode()
+        self.text = self.text[:self.text.index("\x00")]
+
+
+class UAMessageHostDie:
+    def __init__(self, to_id, from_id, sequence_id=0, owner=0, my_timestamp=0, data=None):
+        # uamessage_hostDie = base(16) + killer(u32) + killerOwner(u8) + pad(3) = 24.
+        # Engine (yw_net.cpp UAMSG_HOSTDIE): kills all the owner's units,
+        # cleans targeting, and plays the per-faction "have left the game"
+        # voice feedback (MsgID 87/88/89/90). uads broadcasts this for a
+        # player who leaves a running net game.
+        # Directed cast=0 per recipient: the engine netlib only accepts USR
+        # data when (cast==0 && to == own connection id) or
+        # (cast==1 && to == sesID); cast=1 with to=player_id is silently
+        # dropped (it only GARANT-acks).
+        self.packet_flags = net_messages.PKT_FLAG_GARANT
+        self.sequence_id = sequence_id
+        self.channel = 1
+        self.packet_type = net_messages.USR_MSG_DATA
+
+        self.packet_from = from_id
+        self.packet_cast = 0
+        self.packet_to = to_id
+        self.packet_payload_length = 24
+        self.message_id = net_messages.UAMSG_HOSTDIE
+        self.message_count = 0
+        self.my_timestamp = my_timestamp
+        self.owner = owner
+        self.p0 = 0
+        self.p1 = 0
+        self.p2 = 0
+
+        self.killer = 0
+        self.killerOwner = 0
+        if data:
+            self.data = data
+
+    @property
+    def data(self):
+        ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
+        ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
+        ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
+        ret += struct.pack("<IB3x", self.killer, self.killerOwner)
+        return ret
+
+    @data.setter
+    def data(self, value):
+        self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
+        self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
+        self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
+        self.killer, self.killerOwner = struct.unpack_from("<IB", value, 44)
 
 
 class UAMessageMessage:
