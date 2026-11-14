@@ -245,8 +245,64 @@ class UAMPGame:
 
         return new_player
 
+    def broadcast_faction_state(self):
+        # Forge faction packets so every client's lobby display matches
+        # uads' stored state, as if each player had changed faction in the
+        # UI. Two complementary primitives:
+        #
+        # - Forged UAMSG_WELCOME (uw_net.cpp:2340): if the target's
+        #   SelectedFraction equals the welcome's faction, the engine
+        #   re-picks the first free faction and broadcasts a REAL
+        #   UAMSG_FRACTION, which comes back here and updates our stored
+        #   state. Used to displace duplicate claimants (changes a
+        #   client's actual selection, not just the display).
+        # - Forged UAMSG_FRACTION (yw_net.cpp:2320): the receiving engine
+        #   updates lobbyPlayers[indx].NetFraction (row index resolved
+        #   from the senderName of packet_from) for every client,
+        #   including the affected player's own row. It does NOT change
+        #   that client's own SelectedFraction -- display-only sync.
+        # Duplicate claimants are displaced first, then every player's
+        # row is broadcast (the displaced client's real FRACTION packet
+        # fixes its row afterwards).
+        seen = {}
+        for player in self.players.values():
+            claimant = seen.get(player.faction)
+            if player.faction and claimant is not None:
+                player.send_packet(net_classes.UAMessageWelcome(
+                    to_id=player.player_id,
+                    from_id=claimant.player_id,
+                    sequence_id=player.next_pkt_seq(),
+                    faction=player.faction))
+            seen[player.faction] = player
+        for player in self.players.values():
+            for p in self.players.values():
+                pkt = net_classes.UAMessageFaction(
+                    to_id=p.player_id,
+                    from_id=player.player_id)
+                # freefrac (old) = 0: only claim the faction bit, free
+                # nothing -- the displaced faction's bit is freed by the
+                # SETLEVEL handler or the displaced client's re-pick.
+                pkt.old = 0
+                pkt.new = player.faction
+                p.send_packet(pkt)
+
     def change_level(self, game_level_id):
         self.level_number = game_level_id
+        # Mirror the engine's UAMSG_SETLEVEL handler (yw_net.cpp:2676): it
+        # silently reassigns lobby factions for the new map in RESIST, GHOR,
+        # MYKO, TAER order over the map's allowed owners, indexed by join
+        # order, without broadcasting UAMSG_FRACTION. uads' stored factions
+        # must be recomputed the same way or has_conflicts() fails with
+        # "invalid faction" even though the clients already display the
+        # reassigned (valid) factions.
+        allowed = [owner for owner in (net_games.owner_resistance,
+                                       net_games.owner_ghorkov,
+                                       net_games.owner_mykonian,
+                                       net_games.owner_taerkasten)
+                   if owner in net_games.game_owners[game_level_id]]
+        for i, player in enumerate(self.players.values()):
+            if i < len(allowed):
+                player.faction = net_games.owner_to_faction[allowed[i]]
         for player in self.players.values():
             player.send_packet(net_classes.NetSysSessionJoin(game_id=self.game_id,
                                                              level_number=self.level_number,
@@ -258,6 +314,7 @@ class UAMPGame:
                                                              host_name=player.player_name))
             player.send_message(message="Changing level to "
                                         f"{net_games.game_names.get(game_level_id, '???')} ({game_level_id})")
+        self.broadcast_faction_state()
 
     def has_conflicts(self):
         # Check for too many players in game for map
