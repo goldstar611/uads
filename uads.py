@@ -569,14 +569,21 @@ def main():
             if time.time() - game.stats_time >= 10:
                 game.stats_time = time.time()
                 if game.rx_counts or game.tx_counts:
+                    def mid_name(mid):
+                        if mid is None:
+                            return "sys"
+                        for attr in dir(net_messages):
+                            if attr.startswith("UAMSG_") and getattr(net_messages, attr) == mid:
+                                return f"{attr}({mid})"
+                        return str(mid)
                     for (pname, mid), n in sorted(game.rx_counts.items(),
                                                   key=lambda kv: (kv[0][1] is None, kv[0][1], kv[0][0])):
                         print(f"STATS game={hex(game.game_id)[-4:]} RX {pname} "
-                              f"msg_id={mid}: {n}")
+                              f"{mid_name(mid)}: {n}")
                     for (pname, mid), n in sorted(game.tx_counts.items(),
                                                   key=lambda kv: (kv[0][1] is None, kv[0][1], kv[0][0])):
                         print(f"STATS game={hex(game.game_id)[-4:]} TX {pname} "
-                              f"msg_id={mid}: {n}")
+                              f"{mid_name(mid)}: {n}")
                     game.rx_counts.clear()
                     game.tx_counts.clear()
                     print("---")
