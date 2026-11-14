@@ -929,6 +929,13 @@ class DataToClassException(Exception):
     pass
 
 
+def _dprint(msg):
+    # Decode-path noise: only shown with UADS_DEBUG set. Drop diagnostics
+    # (UADS-SPLIT ...) stay unconditional.
+    if os.environ.get("UADS_DEBUG"):
+        print(msg)
+
+
 def data_to_class(data):
     try:
         # Every message has packet flags
@@ -938,8 +945,7 @@ def data_to_class(data):
         # Multipart messages
         #
         if flags & net_messages.PKT_FLAG_PART:
-            if os.environ.get("UADS_DEBUG"):
-                print("PKT_FLAG_PART")
+            _dprint("PKT_FLAG_PART")
             return Part(data=data)
 
         #
@@ -949,15 +955,15 @@ def data_to_class(data):
             system_message = data[1]
 
             if system_message == net_messages.SYS_MSG_HANDSHAKE:
-                print("SYS_MSG_HANDSHAKE\n")
+                _dprint("SYS_MSG_HANDSHAKE")
                 return NetSysHandshake(client_name=None, data=data)
 
             if system_message == net_messages.SYS_MSG_CONNECTED:
-                print("SYS_MSG_CONNECTED\n")
+                _dprint("SYS_MSG_CONNECTED")
                 return NetSysConnected(client_id=None, client_name=None, data=data)
 
             if system_message == net_messages.SYS_MSG_DISCONNECT:
-                print("SYS_MSG_DISCONNECT\n")
+                _dprint("SYS_MSG_DISCONNECT")
                 return NetSysDisconnected(data=data)
 
             if system_message == net_messages.SYS_MSG_PING:
@@ -969,15 +975,15 @@ def data_to_class(data):
                 return NetSysDelivered(data=data)
 
             if system_message == net_messages.SYS_MSG_RETRY:
-                print("SYS_MSG_RETRY\n")
+                _dprint("SYS_MSG_RETRY")
                 return NetSysRetry(data=data)
 
             if system_message == net_messages.SYS_MSG_SES_JOIN:
-                print("SYS_MSG_SES_JOIN\n")
+                _dprint("SYS_MSG_SES_JOIN")
                 return NetSysSessionJoin(game_id=None, hoster_name=None, level_number=0, data=data)
 
             if system_message == net_messages.SYS_MSG_SES_CLOSE:  # Host sends this message when it closes the server
-                print("SYS_MSG_SES_CLOSE\n")
+                _dprint("SYS_MSG_SES_CLOSE")
                 return NetSysSessionClose(data=data)
 
             raise ValueError("Unknown system message!\n")
@@ -990,7 +996,7 @@ def data_to_class(data):
         user_message = data[6]
 
         if user_message == net_messages.USR_MSG_SES_USERLIST:
-            print("USR_MSG_SES_USERLIST\n")
+            _dprint("USR_MSG_SES_USERLIST")
             return NetUsrSessionList(users=None, data=data)
 
         if user_message == net_messages.USR_MSG_DATA:
@@ -1001,23 +1007,23 @@ def data_to_class(data):
             ua_message = struct.unpack_from("<I", data, 28)[0]
 
             if ua_message == net_messages.UAMSG_LOAD:
-                print("UAMSG_LOAD\n")
+                _dprint("UAMSG_LOAD")
                 return UAMessageLoadGame(to_id=None, level_number=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_NEWVHCL:
-                print("UAMSG_NEWVHCL\n")
+                _dprint("UAMSG_NEWVHCL")
                 return Generic(msg_type="UAMSG_NEWVHCL", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_DESTROYVHCL:
-                print("UAMSG_DESTROYVHCL\n")
+                _dprint("UAMSG_DESTROYVHCL")
                 return Generic(msg_type="UAMSG_DESTROYVHCL", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_NEWWEAPON:
-                print("UAMSG_NEWWEAPON\n")
+                _dprint("UAMSG_NEWWEAPON")
                 return Generic(msg_type="UAMSG_NEWWEAPON", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_SETSTATE:
-                print("UAMSG_SETSTATE\n")
+                _dprint("UAMSG_SETSTATE")
                 return Generic(msg_type="UAMSG_SETSTATE", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_VHCLDATA_I:
@@ -1026,108 +1032,108 @@ def data_to_class(data):
                 return Generic(msg_type="UAMSG_VHCLDATA_I", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_DEAD:
-                print("UAMSG_DEAD\n")
+                _dprint("UAMSG_DEAD")
                 return Generic(msg_type="UAMSG_DEAD", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_VHCLENERGY:
-                print("UAMSG_VHCLENERGY\n")
+                _dprint("UAMSG_VHCLENERGY")
                 return Generic(msg_type="UAMSG_VHCLENERGY", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_SECTORENERGY:
                 # conquer sector
-                print("UAMSG_SECTORENERGY\n")
+                _dprint("UAMSG_SECTORENERGY")
                 return Generic(msg_type="UAMSG_SECTORENERGY", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_STARTBUILD:
                 # conquer sector
-                print("UAMSG_STARTBUILD\n")
+                _dprint("UAMSG_STARTBUILD")
                 return Generic(msg_type="UAMSG_STARTBUILD", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_VIEWER:
-                print("UAMSG_VIEWER\n")
+                _dprint("UAMSG_VIEWER")
                 return UAMessageViewer(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_SYNCGM:
-                print("UAMSG_SYNCGM\n")
+                _dprint("UAMSG_SYNCGM")
                 return UAMessageSyncGame(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_HOSTDIE:
-                print("UAMSG_HOSTDIE\n")
+                _dprint("UAMSG_HOSTDIE")
                 return Generic(msg_type="UAMSG_HOSTDIE", data=data)
 
             if ua_message == net_messages.UAMSG_MESSAGE:  # When someone sends a message
-                print("UAMSG_MESSAGE\n")
+                _dprint("UAMSG_MESSAGE")
                 return UAMessageMessage(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_FACTION:
-                print("UAMSG_FACTION\n")
+                _dprint("UAMSG_FACTION")
                 return UAMessageFaction(to_id=None, from_id=None, data=data)
 
             if ua_message in (net_messages.UAMSG_SETLEVEL, net_messages.UAMSG_LOBBYINIT):
                 return UAMessageSetLevel(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_UPGRADE:
-                print("UAMSG_UPGRADE\n")
+                _dprint("UAMSG_UPGRADE")
                 return Generic(msg_type="UAMSG_UPGRADE", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_WELCOME:
-                print("UAMSG_WELCOME\n")
+                _dprint("UAMSG_WELCOME")
                 return UAMessageWelcome(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_READY:
-                print("UAMSG_READY\n")
+                _dprint("UAMSG_READY")
                 return UAMessageReady(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_REQUPDATE:
-                print("UAMSG_REQUPDATE\n")
+                _dprint("UAMSG_REQUPDATE")
                 return Generic(msg_type="UAMSG_REQUPDATE", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_UPDATE:
-                print("UAMSG_UPDATE\n")
+                _dprint("UAMSG_UPDATE")
                 return Generic(msg_type="UAMSG_UPDATE", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_IMPULSE:
-                print("UAMSG_IMPULSE\n")
+                _dprint("UAMSG_IMPULSE")
                 return Generic(msg_type="UAMSG_IMPULSE", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_LOGMSG:
-                print("UAMSG_LOGMSG\n")
+                _dprint("UAMSG_LOGMSG")
                 return Generic(msg_type="UAMSG_LOGMSG", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_REORDER:
-                print("UAMSG_REORDER\n")
+                _dprint("UAMSG_REORDER")
                 return Generic(msg_type="UAMSG_REORDER", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_STARTPLASMA:
-                print("UAMSG_STARTPLASMA\n")
+                _dprint("UAMSG_STARTPLASMA")
                 return Generic(msg_type="UAMSG_STARTPLASMA", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_ENDPLASMA:
-                print("UAMSG_ENDPLASMA\n")
+                _dprint("UAMSG_ENDPLASMA")
                 return Generic(msg_type="UAMSG_ENDPLASMA", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_STARTBEAM:
-                print("UAMSG_STARTBEAM\n")
+                _dprint("UAMSG_STARTBEAM")
                 return Generic(msg_type="UAMSG_STARTBEAM", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_ENDBEAM:
-                print("UAMSG_ENDBEAM\n")
+                _dprint("UAMSG_ENDBEAM")
                 return Generic(msg_type="UAMSG_ENDBEAM", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_EXIT:
-                print("UAMSG_EXIT\n")  # Ghorkovs have left the game
+                _dprint("UAMSG_EXIT")  # Ghorkovs have left the game
                 return Generic(msg_type="UAMSG_EXIT", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_CRC:
-                print("UAMSG_CRC\n")
+                _dprint("UAMSG_CRC")
                 return UAMessageCRC(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_REQPING:
-                print("UAMSG_REQPING\n")
+                _dprint("UAMSG_REQPING")
                 return Generic(msg_type="UAMSG_REQPING", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_PONG:
-                print("UAMSG_PONG\n")
+                _dprint("UAMSG_PONG")
                 return Generic(msg_type="UAMSG_PONG", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_CD:
@@ -1135,19 +1141,19 @@ def data_to_class(data):
                 return UAMessageCD(to_id=None, from_id=None, data=data)
 
             if ua_message == net_messages.UAMSG_SCORE:
-                print("UAMSG_SCORE\n")
+                _dprint("UAMSG_SCORE")
                 return Generic(msg_type="UAMSG_SCORE", data=data)  # TODO FIXME
 
             if ua_message == net_messages.UAMSG_BUILDINGVHCL:
-                print("UAMSG_BUILDINGVHCL\n")
+                _dprint("UAMSG_BUILDINGVHCL")
                 return Generic(msg_type="UAMSG_BUILDINGVHCL", data=data)  # TODO FIXME
 
-            print(f"seq:{sequence_id}, ch: {channel}, usr_msg: {user_message}\n"
+            _dprint(f"seq:{sequence_id}, ch: {channel}, usr_msg: {user_message}\n"
                   f"src: {source} cast: {cast}, dst: {destination}, data_size: {data_size}\n"
                   f"ua_message: {ua_message}")
             raise ValueError(f"Unknown UA message! {ua_message}\n")
 
-        print(f"seq:{sequence_id}, ch: {channel}, usr_msg: {user_message}")
+        _dprint(f"seq:{sequence_id}, ch: {channel}, usr_msg: {user_message}")
         raise ValueError(f"Unknown message! {data}\n")
     except Exception:
         raise DataToClassException()
