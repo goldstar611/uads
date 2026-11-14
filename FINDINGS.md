@@ -262,3 +262,69 @@ Fixed alongside:
 
 Test: VIEWER(28) + BUILDINGVHCL(528) + SYNCGM(52) = 608-byte payload now
 walks cleanly into 3 packets with no UADS-SPLIT warning.
+
+## 12. Engine-side desync on Rushhour (118): peer never creates owner1's initial units
+Isolated 2026-11-13: running two UA_source clients DIRECTLY (uads bypassed)
+still reproduces on map 118 "Rushhour" -- so this is an engine bug, not uads.
+
+Symptoms (peer's env/ypa_log.txt):
+- From ~7s onward, endless "+++ EVD: Haven't found vehicle ident
+  16842754/55/56 from owner 1" -- owner1's initial units (low gids, robo +
+  first spawns) never existed on the peer. VHCLDATA entries for them
+  cannot apply, and every datagram containing those entries is wasted.
+- "--- shadow vehicle %d was NOT created" (yw_netReportError, yw_net.cpp:59):
+  the id is not in the netDebug created/destroyed ring buffers (32 slots
+  per owner, wraps fast during the level-load creation burst -- can give
+  false negatives, but the EVD misses are real).
+- Downstream: the peer's own guns (owner6, 100728xxx) fire with
+  "+++ NWsend: launcher=... tgtType=0" (BACT_TGT_TYPE_NONE) -- no target,
+  effectively shooting at the last known position. This is the visible
+  "turrets keep firing at the dead enemy's position" behaviour. In a
+  healthy session the same guns send tgtType=4 (BACT_TGT_TYPE_DRCT).
+
+Suspected mechanism: Rushhour's level script creates a large burst of
+initial units at t=0 (log shows "Info overkill !!! msg-count 21..32" in the
+first second). NEWVHCL broadcasts for the peer's initial units arrive
+while the receiver's side is still initializing; every early-exit in the
+UAMSG_NEWVHCL handler (yw_net.cpp:1130) silently drops the vehicle:
+- yw->_GameShell->netPlayers[owner].DestroyFlags / plr->UpdateCountDown
+- ypaworld_func146 creation returns NULL
+- host_node (robo of that owner) not yet created -> "+++ NV: Robo Owner
+  %d not found" -> vehicle dropped, no retry
+=> permanent per-unit desync: the sender keeps sending VHCLDATA for units
+the peer never built.
+
+Instrumentation added to UA_source (all via log_netlog -> env/ypa_log.txt):
+- "+++ NVrecv: owner=%d id=%d kind=%d parent=%d type=%d" at top of
+  UAMSG_NEWVHCL (received creations) + "+++ NVrecv: creation FAILED..."
+  when ypaworld_func146 returns NULL.
+- "+++ DVrecv: owner=%d id=%d" at top of UAMSG_DESTROYVHCL.
+- "+++ NWsend: launcher=%d id=%d type=%d tgtType=%d tgt=%d tgtOwner=%d
+  pos=..." in the ypabact.cpp NEWWEAPON broadcast (every weapon fired,
+  with target type/id/owner + muzzle position).
+- "+++ ClrTgt: dead=%d attacker=%d cleared prim" in
+  NC_STACK_ypabact::CleanAttackersTarget (ypabact.cpp:7901) -- logs each
+  attacker whose primary target is the dying unit.
+- Earlier: "+++ Drecv:" (DEAD fields) and "+++ SSrecv:" (SETSTATE fields)
+  at the tops of those handlers.
+
+Diagnostics recipe (any client): grep env/ypa_log.txt for
+'+++ NVrecv\|+++ DVrecv\|+++ EVD\|+++ NWsend\|+++ ClrTgt\|+++ Drecv'.
+If initial ids are absent from NVrecv -> their NEWVHCL never arrived or
+was dropped before logging; if present with "Robo Owner not found" ->
+creation-ordering race; if "creation FAILED" -> func146 refused (bad
+vehicle id / script mismatch).
+
+## 13. Other known engine quirks (no action yet)
+- "OH NO! The DEATH CACHE BUG is back!" (yw.cpp:1240, ypaworld_func144):
+  a missile is recycled to the death cache with _primTtype still set.
+  Harmless log unless it correlates with stuck targeting; watch for it
+  alongside ClrTgt/NWsend.
+- "Havent found vehicle ... 93.rst" / yw_RestoreVehicleData failures
+  (yw_game.cpp:3370): benign in net sessions -- it is the single-player
+  abort-save restore path running after a net game ends.
+- "Info overkill !!! (msg-count N)" (yw_net.cpp): >20 messages in one
+  outgoing flush; informational, but high counts at t=0 hint at the
+  Rushhour creation burst and are where transport flush limits bite.
+- uaOpenFile('data\sounds\speech\language\1a151.wav') failures: missing
+  voice lines in the VM's game data, unrelated to netcode.
