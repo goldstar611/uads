@@ -1207,12 +1207,9 @@ UA_MSG_SIZES = {
 }
 
 # Variable-size messages: the sender writes its total wire size into the
-# message itself; the engine receiver uses it to advance the walk
-# (yw_handleNormMsg: VHCLDATA consumes the rest of the datagram via
-# msg->_data.size(), UPDATE/REORDER use their sz field). Reading the size
-# lets the walk continue PAST these instead of silently dropping every
-# message concatenated after them (which ate NEWVHCL and broke mid-game
-# vehicle creation/damage).
+# message itself; the receiver uses it to advance the walk. UPDATE/REORDER
+# carry an sz field; VHCLDATA carries hdr.size (offset 18) -- see the
+# _ua_msg_size comment below about the engine bug this replaces.
 
 
 def _ua_msg_size(msg_id, payload, offset):
@@ -1221,11 +1218,20 @@ def _ua_msg_size(msg_id, payload, offset):
         return size
 
     if msg_id in (net_messages.UAMSG_VHCLDATA_I, net_messages.UAMSG_VHCLDATA_E):
-        # Engine receiver consumes the ENTIRE remaining datagram for VHCLDATA
-        # (yw_handleNormMsg: szmsg = msg->_data.size()), so VHCLDATA is always
-        # the last message in a USR_MSG_DATA payload. Match that instead of
-        # trusting hdr.size (offset 18), which may be stale/zero.
-        return len(payload) - offset
+        # vhcldatahdr.size (u16 at payload offset 18) is the sender-computed
+        # FULL message size (yw_HandleNetMsg). The stock engine receiver
+        # consumed the rest of the datagram instead, which silently swallowed
+        # any message queued after VHCLDATA in the same flush buffer
+        # (e.g. NEWVHCL for a freshly created unit) -- fixed in the fork's
+        # yw_net.cpp, mirror it here: trust hdr.size, fall back to rest.
+        try:
+            declared = struct.unpack_from("<H", payload, offset + 18)[0]
+        except struct.error:
+            return len(payload) - offset
+        rest = len(payload) - offset
+        if declared and declared <= rest:
+            return declared
+        return rest
 
     if msg_id == net_messages.UAMSG_UPDATE:
         size = struct.unpack_from("<I", payload, offset + 16)[0]
