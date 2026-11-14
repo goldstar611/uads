@@ -521,6 +521,10 @@ class UAMPGame:
 
         if isinstance(packet, net_classes.UAMessageReady):
             player.ready = packet.ready
+            # Notify the host once every player has readied up.
+            if (packet.ready and not self.game_started and self.num_players > 1
+                    and all(p.ready for p in self.players.values())):
+                self.message_all_players("All players ready - host can use !start")
             # noreturn
 
         if isinstance(packet, net_classes.UAMessageMessage):
