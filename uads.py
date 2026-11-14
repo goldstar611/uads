@@ -115,13 +115,14 @@ class UAMPClient:
 
 
 class UAMPGame:
-    def __init__(self, sock):
+    def __init__(self, sock, incompatible_client=False):
         self.socket = sock
         self.game_id = uuid.uuid4().fields[5]
         self.level_number = 93
         self.game_started = False
         self.game_locked = False
         self.game_start_time = 0
+        self.incompatible_client = incompatible_client
         self.players = {}  # type: dict[tuple, UAMPClient]
         self.multi_part_packets = {}
         self.rx_counts = {}  # msg_id -> RX count (per player, for loss debugging)
@@ -633,6 +634,9 @@ class UAMPGame:
         return self.num_players >= self.max_players()
 
 
+UADS_COMPAT_VERSION = "github.com/goldstar611/UA_Source"
+
+
 def switch_packet(packet, player_addr_port, games, sock, extra_messages=None):
     for game in games:  # Can be optimized later
         if player_addr_port in game:
@@ -642,6 +646,27 @@ def switch_packet(packet, player_addr_port, games, sock, extra_messages=None):
 
     # Ok so the packet came from a player who wasn't in a game, is it a join request packet?
     if isinstance(packet, net_classes.NetSysHandshake):
+        # Strict client compatibility check: fork clients append their
+        # version string to the handshake; anything else (old engine
+        # builds, no version field) is routed to a solo game that tells
+        # the user to update and then disconnects them.
+        compatible = packet.version == UADS_COMPAT_VERSION
+        if not compatible:
+            print(f"Client {packet.client_name} from {player_addr_port} is not compatible "
+                  f"(version={packet.version!r} expected {UADS_COMPAT_VERSION!r})")
+            game = UAMPGame(sock=sock, incompatible_client=True)
+            games.append(game)
+            new_player = game.add_player(packet.client_name, player_addr_port)
+            for line in ("Your UA_Source client is not compatible",
+                         "Download the new UA_Source client at",
+                         "github.com/goldstar611/UA_Source"):
+                game.message_all_players(message=line)
+            # Give the client a moment to receive and display the chat
+            # lines before the disconnect kills the session.
+            time.sleep(1)
+            game.kick_player(new_player)
+            return
+
         for game in games:
             if not game.is_full():
                 # print("Adding player to game")

@@ -74,20 +74,27 @@ class Part:
 class NetSysHandshake:
     def __init__(self, client_name, data=None):
         # data=b"80 01 16 07 UA:SOURCE TEST NETWORKUnnamed"
+        # Fork clients append an optional version string:
+        #   [flags][type][netSz][nameSz][net][name][verSz][version]
+        # Old clients stop after [name]. uads uses the version for the
+        # strict compatibility check (see uads.py switch_packet).
         self.packet_flags = net_messages.PKT_FLAG_SYSTEM
         self.packet_type = net_messages.SYS_MSG_HANDSHAKE
         self.network_name = "UA:SOURCE TEST NETWORK"
         self.client_name = client_name
+        self.version = None
         if data:
             self.data = data
 
     def __repr__(self):
-        return f'<NetSysHandshake(network_name="{self.network_name}", client_name="{self.client_name}")>'
+        return f'<NetSysHandshake(network_name="{self.network_name}", client_name="{self.client_name}", version="{self.version}")>'
 
     @property
     def data(self):
         ret = struct.pack("<BBBB", self.packet_flags, self.packet_type, len(self.network_name), len(self.client_name))
         ret += self.network_name.encode() + self.client_name.encode()
+        if self.version is not None:
+            ret += struct.pack("<B", len(self.version)) + self.version.encode()
         return ret
 
     @data.setter
@@ -96,6 +103,12 @@ class NetSysHandshake:
         network_name_length, client_name_length = struct.unpack_from("<BB", value, offset)
         self.network_name = value[4: 4 + network_name_length].decode()
         self.client_name = value[4 + network_name_length: 4 + network_name_length + client_name_length].decode()
+
+        end = 4 + network_name_length + client_name_length
+        self.version = None
+        if len(value) > end:
+            ver_len = value[end]
+            self.version = value[end + 1: end + 1 + ver_len].decode()
 
 
 class NetSysConnected:
