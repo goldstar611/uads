@@ -72,5 +72,8 @@ UAMSG_REQPING = UAMSG_BASE + 38  # = 0x040e
 UAMSG_PONG = UAMSG_BASE + 39  # = 0x040f
 UAMSG_STARTPROBLEM = UAMSG_BASE + 40  # = 0x0410
 UAMSG_ENDPROBLEM = UAMSG_BASE + 41  # = 0x0411
+# UAMSG_CD was removed from the engine in 330eb51 (2022-11-07) and is no longer
+# sent on the wire, but the ID is kept here so uads/mitm can still parse
+# captures from 2022-era builds.
 UAMSG_CD = UAMSG_BASE + 42  # = 0x0412
 UAMSG_SCORE = UAMSG_BASE + 43  # = 0x0413

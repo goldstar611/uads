@@ -1,7 +1,10 @@
-faction_resistance = 1
-faction_ghorkov = 2
-faction_mykonian = 4
-faction_taerkasten = 8
+# Faction values as sent on the wire by UA_source >= 4b60687 (2023-02-13):
+# the engine now uses the world owner bits (1 << owner_index), not the old
+# NET_FRACTION_* bitmask (1/2/4/8) that pre-2023 builds used.
+faction_resistance = 2   # World::OWNER_RESIST_BIT (OWNER_RESIST  = 1)
+faction_ghorkov = 64     # World::OWNER_GHOR_BIT   (OWNER_GHOR    = 6)
+faction_mykonian = 8     # World::OWNER_MYKO_BIT   (OWNER_MYKO    = 3)
+faction_taerkasten = 16  # World::OWNER_TAER_BIT   (OWNER_TAER    = 4)
 faction_names = {faction_resistance: "Resistance",
                  faction_ghorkov: "Ghorkov",
                  faction_mykonian: "Mykonian",

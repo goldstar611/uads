@@ -144,6 +144,31 @@ class NetSysDisconnected:
         pass  # Nothing to do here
 
 
+class NetSysRetry:
+    def __init__(self, sequence_id=0, from_off=0, up_to=0, data=None):
+        # data=b"80 08 0c000000 40000000 80000000"
+        self.packet_flags = net_messages.PKT_FLAG_SYSTEM
+        self.packet_type = net_messages.SYS_MSG_RETRY
+        self.sequence_id = sequence_id
+        self.from_off = from_off
+        self.up_to = up_to
+        if data:
+            self.data = data
+
+    def __repr__(self):
+        return f'<NetSysRetry(sequence_id="{self.sequence_id}", from="{self.from_off}", upto="{self.up_to}")>'
+
+    @property
+    def data(self):
+        ret = struct.pack("<BBIII", self.packet_flags, self.packet_type,
+                          self.sequence_id, self.from_off, self.up_to)
+        return ret
+
+    @data.setter
+    def data(self, value):
+        self.sequence_id, self.from_off, self.up_to = struct.unpack_from("<III", value, 2)
+
+
 class NetSysPing:
     def __init__(self, sequence_id=0, data=None):
         # data=b"80 05 01000000"
@@ -345,7 +370,8 @@ class NetUsrJoin:
 
 class UAMessageWelcome:
     def __init__(self, to_id, from_id, sequence_id=2, faction=0, data=None):
-        # data = b"02 02000000 01 10 691ecc1129000000 00 57a58b042c000000 14000000 fe030000 00000000 3a59bba2 00 0f 00 00 0100 01 01"
+        # UA_source >= 330eb51 (2022-11-07): uamessage_welcome is fraction(i16) + rdy(u8),
+        # payload = 19 bytes (0x13). The old trailing "cd" byte was removed from the engine.
         self.packet_flags = net_messages.PKT_FLAG_GARANT
         self.sequence_id = sequence_id
         self.channel = 1
@@ -354,7 +380,7 @@ class UAMessageWelcome:
         self.packet_from = from_id
         self.packet_cast = 0
         self.packet_to = to_id
-        self.packet_payload_length = 0x14
+        self.packet_payload_length = 0x13
         self.message_id = net_messages.UAMSG_WELCOME
         self.message_count = 0
         self.my_timestamp = 0
@@ -365,7 +391,6 @@ class UAMessageWelcome:
 
         self.faction = faction
         self.ready = 0
-        self.cd = 1
         if data:
             self.data = data
 
@@ -374,7 +399,7 @@ class UAMessageWelcome:
                f'packet_to="{self.packet_to}", message_count="{self.message_count}", ' \
                f'my_timestamp="{self.my_timestamp}", owner="{self.owner}", p0="{self.p0}", ' \
                f'p1="{self.p1}", p2="{self.p2}", faction="{self.faction}", ' \
-               f'ready="{self.ready}", cd="{self.cd}")>'
+               f'ready="{self.ready}")>'
 
     @property
     def data(self):
@@ -382,7 +407,7 @@ class UAMessageWelcome:
         ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
         ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
         ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
-        ret += struct.pack("<HBB", self.faction, self.ready, self.cd)
+        ret += struct.pack("<HB", self.faction, self.ready)
         return ret
 
     @data.setter
@@ -391,7 +416,61 @@ class UAMessageWelcome:
         self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
         self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
         self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
-        self.faction, self.ready, self.cd = struct.unpack_from("<HBB", value, 44)
+        self.faction, self.ready = struct.unpack_from("<HB", value, 44)
+
+
+class UAMessageSetLevel:
+    def __init__(self, to_id, from_id, sequence_id=2, level_number=0, host_name="uads", data=None):
+        # uamessage_setLevel / uamessage_lobbyInit (yw_net.h:376): base(16) +
+        # hostName char[64] + lvlID u32 + fractions[4] = 88 bytes. The engine
+        # lobby learns the level ONLY from this message (yw_net.cpp:2659
+        # SETLEVEL handler and the LOBBYINIT handler sent to joiners) - the
+        # level inside the SES_JOIN session name is not enough on reconnect.
+        self.packet_flags = net_messages.PKT_FLAG_GARANT
+        self.sequence_id = sequence_id
+        self.channel = 1
+        self.packet_type = net_messages.USR_MSG_DATA
+
+        self.packet_from = from_id
+        self.packet_cast = 0
+        self.packet_to = to_id
+        self.packet_payload_length = 88
+        self.message_id = net_messages.UAMSG_SETLEVEL
+        self.message_count = 0
+        self.my_timestamp = 0
+        self.owner = 0
+        self.p0 = 0
+        self.p1 = 0
+        self.p2 = 0
+
+        self.host_name = host_name
+        self.level_number = level_number
+        if data:
+            self.data = data
+
+    def __repr__(self):
+        return f'<UAMessageSetLevel(packet_from="{self.packet_from}", packet_to="{self.packet_to}", ' \
+               f'level_number="{self.level_number}", host_name="{self.host_name}")>'
+
+    @property
+    def data(self):
+        ret = struct.pack("<BIBB", self.packet_flags, self.sequence_id, self.channel, self.packet_type)
+        ret += struct.pack("<QBQ", self.packet_from, self.packet_cast, self.packet_to)
+        ret += struct.pack("<IIII", self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp)
+        ret += struct.pack("<BBBB", self.owner, self.p0, self.p1, self.p2)
+        ret += self.host_name.encode()[:64].ljust(64, b"\x00")
+        ret += struct.pack("<I", self.level_number)
+        ret += b"\x00" * 4
+        return ret
+
+    @data.setter
+    def data(self, value):
+        self.packet_flags, self.sequence_id, self.channel = struct.unpack_from("<BIBx", value, 0)
+        self.packet_from, self.packet_cast, self.packet_to = struct.unpack_from("<QBQ", value, 7)
+        self.packet_payload_length, self.message_id, self.message_count, self.my_timestamp = struct.unpack_from("<IIII", value, 24)
+        self.owner, self.p0, self.p1, self.p2 = struct.unpack_from("<BBBB", value, 40)
+        self.host_name = value[44:108].split(b"\x00")[0].decode()
+        self.level_number = struct.unpack_from("<I", value, 108)[0]
 
 
 class UAMessageReady:
@@ -887,6 +966,10 @@ def data_to_class(data):
                 # print("SYS_MSG_DELIVERED\n")
                 return NetSysDelivered(data=data)
 
+            if system_message == net_messages.SYS_MSG_RETRY:
+                print("SYS_MSG_RETRY\n")
+                return NetSysRetry(data=data)
+
             if system_message == net_messages.SYS_MSG_SES_JOIN:
                 print("SYS_MSG_SES_JOIN\n")
                 return NetSysSessionJoin(game_id=None, hoster_name=None, level_number=0, data=data)
@@ -978,6 +1061,9 @@ def data_to_class(data):
                 print("UAMSG_FACTION\n")
                 return UAMessageFaction(to_id=None, from_id=None, data=data)
 
+            if ua_message in (net_messages.UAMSG_SETLEVEL, net_messages.UAMSG_LOBBYINIT):
+                return UAMessageSetLevel(to_id=None, from_id=None, data=data)
+
             if ua_message == net_messages.UAMSG_UPGRADE:
                 print("UAMSG_UPGRADE\n")
                 return Generic(msg_type="UAMSG_UPGRADE", data=data)  # TODO FIXME
@@ -1063,3 +1149,154 @@ def data_to_class(data):
         raise ValueError(f"Unknown message! {data}\n")
     except Exception:
         raise DataToClassException()
+
+
+# Fixed sizeof(uamessage_*) per UA message id (yw_net.h), for walking
+# concatenated UA messages inside one USR_MSG_DATA payload. The engine
+# buffers broadcasts (windp.cpp QueueBroadcast, 864f389) so several messages
+# often arrive as one stream; clients parse them back-to-back using these
+# sizes (yw_net.cpp:3346). Sizes verified by compiling a sizeof-dump against
+# the real yw_net.h (uamessage_base=16; logmsg=44, score=44, welcome=20,
+# vhclData=24 differ from the old hand-counted table).
+UA_MSG_SIZES = {
+    net_messages.UAMSG_LOAD: 20,
+    net_messages.UAMSG_NEWVHCL: 56,     # vec3d pos = 3 doubles (24B, align 8)
+    net_messages.UAMSG_DESTROYVHCL: 24,
+    net_messages.UAMSG_NEWLEADER: 24,
+    net_messages.UAMSG_NEWWEAPON: 104,  # 3 vec3d
+    net_messages.UAMSG_SETSTATE: 32,
+    net_messages.UAMSG_DEAD: 32,
+    net_messages.UAMSG_VHCLENERGY: 32,
+    net_messages.UAMSG_SECTORENERGY: 56,  # vec3d pos + energy + whoHit + u8 + 3 pad (align 8)
+    net_messages.UAMSG_STARTBUILD: 24,
+    net_messages.UAMSG_BUILDINGVHCL: 528,  # base 16 + 8 x 64 (id + 2 x vec3d(24) + i16 + 2 pad, 8-aligned)
+    net_messages.UAMSG_VIEWER: 28,
+    net_messages.UAMSG_SYNCGM: 52,
+    net_messages.UAMSG_HOSTDIE: 24,
+    net_messages.UAMSG_MESSAGE: 80,
+    net_messages.UAMSG_KICK: 80,
+    net_messages.UAMSG_UPGRADE: 20,
+    net_messages.UAMSG_FACTION: 20,
+    net_messages.UAMSG_WELCOME: 20,
+    net_messages.UAMSG_READY: 20,
+    net_messages.UAMSG_REQUPDATE: 16,
+    net_messages.UAMSG_IMPULSE: 88,     # id(4)+pad(4) + vec3d + i32 + f32 + vec3d + f32 + pad(4)
+    net_messages.UAMSG_LOGMSG: 44,
+    net_messages.UAMSG_LOBBYINIT: 88,
+    net_messages.UAMSG_SETLEVEL: 88,
+    net_messages.UAMSG_STARTPLASMA: 128,  # vec3d + mat3x3 (9 doubles)
+    net_messages.UAMSG_ENDPLASMA: 20,
+    net_messages.UAMSG_STARTBEAM: 48,   # vec3d pos
+    net_messages.UAMSG_ENDBEAM: 20,
+    net_messages.UAMSG_EXIT: 20,
+    net_messages.UAMSG_CRC: 20,
+    net_messages.UAMSG_REQPING: 20,
+    net_messages.UAMSG_PONG: 20,
+    net_messages.UAMSG_STARTPROBLEM: 20,
+    net_messages.UAMSG_ENDPROBLEM: 20,
+    net_messages.UAMSG_CD: 20,
+    net_messages.UAMSG_SCORE: 240,      # 8 x TPlayerStatus (7 x int32 = 28)
+}
+
+# Variable-size messages: the sender writes its total wire size into the
+# message itself; the engine receiver uses it to advance the walk
+# (yw_handleNormMsg: VHCLDATA consumes the rest of the datagram via
+# msg->_data.size(), UPDATE/REORDER use their sz field). Reading the size
+# lets the walk continue PAST these instead of silently dropping every
+# message concatenated after them (which ate NEWVHCL and broke mid-game
+# vehicle creation/damage).
+
+
+def _ua_msg_size(msg_id, payload, offset):
+    size = UA_MSG_SIZES.get(msg_id)
+    if size is not None:
+        return size
+
+    if msg_id in (net_messages.UAMSG_VHCLDATA_I, net_messages.UAMSG_VHCLDATA_E):
+        # Engine receiver consumes the ENTIRE remaining datagram for VHCLDATA
+        # (yw_handleNormMsg: szmsg = msg->_data.size()), so VHCLDATA is always
+        # the last message in a USR_MSG_DATA payload. Match that instead of
+        # trusting hdr.size (offset 18), which may be stale/zero.
+        return len(payload) - offset
+
+    if msg_id == net_messages.UAMSG_UPDATE:
+        size = struct.unpack_from("<I", payload, offset + 16)[0]
+        return size if 24 <= size <= len(payload) - offset else None
+
+    if msg_id == net_messages.UAMSG_REORDER:
+        # base(16) + mode,comm,commID,num(4 each) + sz(u32) at offset 32
+        size = struct.unpack_from("<I", payload, offset + 32)[0]
+        return size if 24 <= size <= len(payload) - offset else None
+
+    return None  # unknown -> stop the walk
+
+
+def split_usr_data(raw):
+    """Split a USR_MSG_DATA datagram containing several concatenated UA
+    messages into one parsed packet object per message.
+
+    Returns a list; every element carries its own sub-datagram in .data.
+    Unknown message types stop the walk (they are sent standalone)."""
+    try:
+        packet_type = struct.unpack_from("<B", raw, 6)[0]
+        if packet_type != net_messages.USR_MSG_DATA:
+            return []
+
+        payload = raw[28:28 + struct.unpack_from("<I", raw, 24)[0]]
+
+        packets = []
+        offset = 0
+        while offset + 16 <= len(payload):
+            msg_id = struct.unpack_from("<I", payload, offset)[0]
+            size = _ua_msg_size(msg_id, payload, offset)
+            if size is None:
+                print("UADS-SPLIT: unknown msg_id=%d at payload offset %d "
+                      "(%d bytes from here to end)" % (msg_id, offset, len(payload) - offset))
+                break
+            if offset + size > len(payload):
+                print("UADS-SPLIT: msg_id=%d at offset %d claims size %d > "
+                      "%d remaining" % (msg_id, offset, size, len(payload) - offset))
+                break
+
+            sub = raw[:24] + struct.pack("<I", size) + payload[offset:offset + size]
+            try:
+                pkt = data_to_class(sub)
+            except Exception as e:
+                msg_id = struct.unpack_from("<I", payload, offset)[0]
+                print("UADS-SPLIT: dropping undecodable msg_id=%d at payload "
+                      "offset %d (size %d): %s" % (msg_id, offset, size, e))
+                pkt = None
+            if pkt:
+                pkt.data = sub  # each message carries its own datagram, so
+                                # relay_packet() can re-frame it separately
+                packets.append(pkt)
+            offset += size
+
+        consumed = offset
+        if consumed != len(payload):
+            rest = payload[offset:]
+            ids = [getattr(m, "message_id", None) for m in packets]
+            print("UADS-SPLIT: walk consumed %d of %d payload bytes after "
+                  "messages %s; %d bytes left unaccounted: %r"
+                  % (consumed, len(payload), ids, len(rest), rest[:120]))
+            _dump_bad_split(raw, offset)
+        return packets
+    except Exception:
+        return []
+
+
+def _dump_bad_split(raw, walk_offset):
+    """Persist the full raw datagram of a bad split for offline analysis."""
+    import os
+    import time
+    d = os.environ.get("UADS_BADSPLIT_DIR") or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "bad_splits")
+    try:
+        os.makedirs(d, exist_ok=True)
+        name = time.strftime("split_%Y%m%d_%H%M%S") + ".dat"
+        with open(os.path.join(d, name), "wb") as f:
+            f.write(raw)
+        print("UADS-SPLIT: raw datagram saved to %s (walk stopped at "
+              "payload offset %d)" % (os.path.join(d, name), walk_offset))
+    except OSError as e:
+        print("UADS-SPLIT: could not save datagram: %s" % e)

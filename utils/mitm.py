@@ -19,233 +19,33 @@ def new_client_socket():
 
 
 def inspect(prefix, cli_address, data, from_server=False):
-    print(prefix)
-    print(binascii.hexlify(data))
-
-    # Every message has packet flags
-    flags = data[0]
-
-    #
-    # short messages (System)
-    #
-    if flags & PKT_FLAG_MASK_SYSTEM:
-        system_message = data[1]
-
-        if system_message == SYS_MSG_HANDSHAKE:
-            cls = NetSysHandshake(client_name=None, data=data)
-            print(cls)
-            print("SYS_MSG_HANDSHAKE: Client join request\n")
-            return
-
-        if system_message == SYS_MSG_CONNECTED:
-            cls = NetSysConnected(client_id=None, client_name=None, data=data)
-            print(cls)
-            print("SYS_MSG_CONNECTED: Client join\n")
-            return
-
-        if system_message == SYS_MSG_DISCONNECT:
-            cls = NetSysDisconnected(data=data)
-            print(prefix)
-            print(binascii.hexlify(data))
-            print("SYS_MSG_DISCONNECT: Client leave\n")
-            return
-
-        if system_message == SYS_MSG_PING:
-            cls = NetSysPing(data=data)
-            #print("SYS_MSG_PING\n")
-            return
-
-        if system_message == SYS_MSG_DELIVERED:
-            cls = NetSysDelivered(data=data)
-            #print("SYS_MSG_DELIVERED\n")
-            return
-
-        if system_message == SYS_MSG_SES_JOIN:
-            cls = NetSysSessionJoin(game_id=None, hoster_name=None, level_number=None, data=data)
-            print(cls)
-            print("SYS_MSG_SES_JOIN: Level Select Message\n")
-            return
-
-        if system_message == SYS_MSG_SES_CLOSE:  # Host sends this message when it closes the server
-            cls = NetSysSessionClose(data=data)
-            print(prefix)
-            print(binascii.hexlify(data))
-            print("SYS_MSG_SES_CLOSE: Socket closed\n")
-            return
-
-        print("Unimplemented system message!\n")
-
-    #
-    # Long messages (User)
-    #
-    sequence_id = data[1:5]
-    channel = data[5]
-    user_message = data[6]
-
-    if user_message == USR_MSG_SES_USERJOIN:
-        cls = NetUsrJoin(client_name=None, client_id=None, data=data)
-        print(cls)
-        print("USR_MSG_SES_USERJOIN\n")
+    # Decode the whole walk (the engine concatenates UA messages in one
+    # USR_MSG_DATA payload) and print one compact line per datagram.
+    try:
+        msgs = split_usr_data(data)
+        if not msgs:
+            msgs = [data_to_class(data)]
+    except Exception:
+        msgs = []
+        print(f"{prefix}: UNDECODABLE {binascii.hexlify(data).decode()}")
         return
 
-    if user_message == USR_MSG_SES_USERLIST:
-        cls = NetUsrSessionList(users=None, data=data)
-        print(cls)
-        print("USR_MSG_SES_USERLIST: Who is in game\n")
-        return
-
-    if user_message == USR_MSG_DATA:
-        source = struct.unpack_from("<Q", data, 7)[0]
-        cast = struct.unpack_from("<B", data, 15)[0]
-        destination = struct.unpack_from("<Q", data, 16)[0]
-        data_size = struct.unpack_from("<I", data, 24)[0]
-        ua_message = struct.unpack_from("<I", data, 28)[0]
-        # print("usr msg src: {} cast: {}, dst: {}, data_size: {}".format(source, cast, destination, data_size))
-
-        if ua_message == UAMSG_LOAD:
-            print("UAMSG_LOAD: Start game Message\n")
-            return
-    
-        if ua_message == UAMSG_NEWVHCL:
-            print("UAMSG_NEWVHCL New vehicle genesis yo\n")
-            return
-    
-        if ua_message == UAMSG_DESTROYVHCL:
-            print("UAMSG_DESTROYVHCL\n")
-            return
-    
-        if ua_message == UAMSG_NEWWEAPON:
-            print("UAMSG_NEWWEAPON someone fired something!\n")
-            return
-    
-        if ua_message == UAMSG_SETSTATE:
-            print("UAMSG_SETSTATE vehicle genesis -> complete or died or sector captured\n")
-            return
-    
-        if ua_message == UAMSG_VHCLDATA_I:
-            # send vehicle data updates such as location
-            print("UAMSG_VHCLDATA_I\n")
-            return
-    
-        if ua_message == UAMSG_DEAD:
-            print("UAMSG_DEAD wah wah\n")
-            return
-    
-        if ua_message == UAMSG_VHCLENERGY:
-            print("UAMSG_VHCLENERGY\n")
-            return
-    
-        if ua_message == UAMSG_SECTORENERGY:
-            # conquer sector
-            print("UAMSG_SECTORENERGY\n")
-            return
-    
-        if ua_message == UAMSG_VIEWER:
-            print("UAMSG_VIEWER\n")
-            return
-    
-        if ua_message == UAMSG_SYNCGM:
-            cls = UAMessageSyncGame(to_id=None, from_id=None, data=data)
-            print("UAMSG_SYNCGM: {}\n".format(cls))
-            return
-
-        if ua_message == UAMSG_HOSTDIE:
-            print("UAMSG_HOSTDIE:\n")
-            return
-
-        if ua_message == UAMSG_MESSAGE:  # When someone sends a message
-            print(prefix)
-            print(binascii.hexlify(data))
-            print("UAMSG_MESSAGE\n")
-            return
-    
-        if ua_message == UAMSG_FACTION:
-            cls = UAMessageFaction(from_id=None, to_id=None, data=data)
-            print(cls)
-            print("UAMSG_FACTION\n")
-            return
-    
-        if ua_message == UAMSG_WELCOME:
-            cls = UAMessageWelcome(from_id=None, to_id=None, data=data)
-            print(cls)
-            print("UAMSG_WELCOME\n")
-            return
-    
-        if ua_message == UAMSG_READY:
-            cls = UAMessageReady(from_id=None, to_id=None, data=data)
-            print(cls)
-            print("UAMSG_READY\n")
-            return
-    
-        if ua_message == UAMSG_REQUPDATE:
-            print("UAMSG_REQUPDATE\n")
-            return
-    
-        if ua_message == UAMSG_UPDATE:
-            print("UAMSG_UPDATE\n")
-            return
-    
-        if ua_message == UAMSG_IMPULSE:
-            print("UAMSG_IMPULSE\n")
-            return
-    
-        if ua_message == UAMSG_LOGMSG:
-            print("UAMSG_LOGMSG\n")
-            return
-    
-        if ua_message == UAMSG_REORDER:
-            print("UAMSG_REORDER\n")
-            return
-    
-        if ua_message == UAMSG_STARTPLASMA:
-            print("UAMSG_STARTPLASMA\n")
-            return
-    
-        if ua_message == UAMSG_ENDPLASMA:
-            print("UAMSG_ENDPLASMA\n")
-            return
-    
-        if ua_message == UAMSG_STARTBEAM:
-            print("UAMSG_STARTBEAM\n")
-            return
-    
-        if ua_message == UAMSG_ENDBEAM:
-            print("UAMSG_ENDBEAM\n")
-            return
-    
-        if ua_message == UAMSG_EXIT:
-            print("UAMSG_EXIT\n")  # Ghorkovs have left the game
-            return
-    
-        if ua_message == UAMSG_CRC:
-            cls = UAMessageCRC(from_id=None, to_id=None, data=data)
-            print(cls)
-            print("UAMSG_CRC\n")
-            return
-    
-        if ua_message == UAMSG_REQPING:
-            # spammy
-            print("UAMSG_REQPING\n")
-            return
-    
-        if ua_message == UAMSG_PONG:
-            # spammy
-            print("UAMSG_PONG\n")
-            return
-    
-        if ua_message == UAMSG_CD:
-            # spammy
-            cls = UAMessageCD(from_id=None, to_id=None, data=data)
-            print(cls)
-            print("UAMSG_CD\n")
-            return
-    
-        if ua_message == UAMSG_SCORE:
-            # spammy
-            print("UAMSG_SCORE\n")
-            return
-
-    print("Unknown command!\n")
+    parts = []
+    for m in msgs:
+        if isinstance(m, NetSysRetry):
+            parts.append(f"RETRY(seq={m.sequence_id} from={m.from_off} upto={m.up_to})")
+        elif isinstance(m, NetSysDelivered):
+            parts.append(f"DELIVERED(seq={m.sequence_id})")
+        elif isinstance(m, NetSysPing):
+            parts.append(f"PING(seq={m.sequence_id})")
+        elif getattr(m, "message_id", None) is not None:
+            cast = getattr(m, "packet_cast", None)
+            dst = getattr(m, "packet_to", None)
+            parts.append(f"{type(m).__name__}/{m.message_id}"
+                         + (f"(cast={cast} to={dst:#x})" if cast is not None else ""))
+        else:
+            parts.append(type(m).__name__)
+    print(f"{prefix}: {' + '.join(parts)}")
 
 
 # Server code
