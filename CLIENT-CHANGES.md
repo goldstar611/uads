@@ -110,3 +110,88 @@ trigger the abort paths (`netProblem` countdown → `STATE_ABORTED` → client d
 3. If drops persist, implement the host-election fix (FINDINGS.md §9, option 2:
    wire `EVENT_SESSION_LEAD` → `RECVMSG_HOST` in `windp.cpp` + uads sends
    `SYS_MSG_SES_LEAD`), since that path has been dead in every engine version.
+
+---
+
+# Engine findings from the 2026-11-13 sessions
+
+## Rushhour (118) desync: peer never creates owner1's initial units (ENGINE BUG)
+
+Isolated by running two UA_source clients DIRECTLY (uads bypassed) — still
+reproduces on map 118, so this is an engine bug, not uads.
+
+Symptoms (peer's env/ypa_log.txt):
+
+- From ~7 s onward, endless `+++ EVD: Haven't found vehicle ident 16842754/55/56
+  from owner 1` — owner1's initial units (low gids: robo + first spawns) never
+  existed on the peer. Their VHCLDATA entries cannot apply.
+- `--- shadow vehicle %d was NOT created` (yw_netReportError, yw_net.cpp:59): the
+  id is not in the netDebug created/destroyed ring buffers (32 slots per owner,
+  wraps fast during the level-load creation burst — can give false negatives,
+  but the EVD misses are real).
+- Downstream: the peer's own guns fire with `+++ NWsend: ... tgtType=0`
+  (BACT_TGT_TYPE_NONE) — no target, effectively shooting at the last known
+  position. Healthy sessions send tgtType=4 (BACT_TGT_TYPE_DRCT).
+
+Suspected mechanism: Rushhour's script creates a large burst of initial units at
+t=0 (`Info overkill !!! msg-count 21..32` in the first second). NEWVHCL
+broadcasts arrive while the receiver is still initializing; every early-exit in
+the UAMSG_NEWVHCL handler (yw_net.cpp:1130) silently drops the vehicle:
+`netPlayers[owner].DestroyFlags` / `plr->UpdateCountDown`, `ypaworld_func146`
+returning NULL, or host_node (that owner's robo) not yet created → permanent
+per-unit desync; the sender keeps streaming VHCLDATA for units the peer never
+built.
+
+## Engine instrumentation added (log_netlog → env/ypa_log.txt)
+
+- `+++ NVrecv: owner=%d id=%d kind=%d parent=%d type=%d` at the top of
+  UAMSG_NEWVHCL, plus `+++ NVrecv: creation FAILED...` when func146 returns
+  NULL; `+++ DVrecv: owner=%d id=%d` for DESTROYVHCL (yw_net.cpp).
+- `+++ NWsend: launcher=... id=... type=... tgtType=... tgt=... tgtOwner=...
+  pos=...` in the ypabact.cpp NEWWEAPON broadcast (every weapon fired, with
+  target type/id/owner and muzzle position).
+- `+++ ClrTgt: dead=%d attacker=%d cleared prim` in
+  `NC_STACK_ypabact::CleanAttackersTarget` (ypabact.cpp:7901) — logs each
+  attacker whose primary target is the dying unit.
+- `+++ Drecv:` (DEAD fields) and `+++ SSrecv:` (SETSTATE fields) at the tops of
+  those handlers (yw_net.cpp).
+
+Diagnostics recipe: `grep '+++ NVrecv\|+++ DVrecv\|+++ EVD\|+++ NWsend\|+++
+ClrTgt\|+++ Drecv' env/ypa_log.txt`. Missing initial ids in NVrecv → their
+NEWVHCL never arrived / was dropped before logging; "Robo Owner not found" →
+creation-ordering race; "creation FAILED" → func146 refused.
+
+## Other known engine quirks
+
+- `OH NO! The DEATH CACHE BUG is back!` (yw.cpp:1240, ypaworld_func144): a
+  missile is recycled to the death cache with `_primTtype` still set. Harmless
+  log unless correlated with stuck targeting.
+- `Havent found vehicle ... 93.rst` / yw_RestoreVehicleData failures
+  (yw_game.cpp:3370): benign in net sessions — the single-player abort-save
+  restore path after a net game ends.
+- `Info overkill !!! (msg-count N)`: >20 messages in one outgoing flush;
+  informational, but high counts at t=0 hint at the Rushhour creation burst.
+- `uaOpenFile('data\sounds\speech\language\1a151.wav')` failures: missing voice
+  lines in the game data, unrelated to netcode.
+
+## Lobby faction mechanics (yw_func2.cpp / yw_net.cpp)
+
+- `UAMSG_SETLEVEL` (yw_net.cpp:2676) silently reassigns lobby factions on level
+  change: walks RESIST → GHOR → MYKO → TAER over the map's allowed owners,
+  assigns by join index, updates each client's own `SelectedFraction`, and
+  broadcasts nothing.
+- Faction buttons stay CLICKABLE as long as the map allows the faction
+  (yw_func2.cpp:4402-4425); the click handler (yw_func2.cpp:3578) frees the old
+  faction, claims the new one and broadcasts UAMSG_FRACTION — no "slot full"
+  check at click time.
+- Conflicts are detected per-frame (yw_func2.cpp:4455): disallowed or duplicated
+  factions set `lobbyPlayers[].IsTrouble = true` (the "!" icon) and
+  `netGameCanStart = false`.
+- The apparent "snap back" of a faction swap in a full lobby comes from the
+  UAMSG_WELCOME re-pick (yw_net.cpp:2374): a claimant whose SelectedFraction
+  matches an incoming welcome re-picks the FIRST FREE bit; in a full lobby no
+  bit is free, so the exchange can never settle.
+- FreeFraction bookkeeping in UAMSG_FRACTION (yw_net.cpp:2320): `FreeFraction
+  &= ~newfrac; |= freefrac`; the row update resolves the player via
+  `GetPlayerIndex(senderName)` — i.e. by the USR_MSG_DATA sender name, which
+  windp derives from the framing's `from` id.
