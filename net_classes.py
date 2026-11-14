@@ -1,3 +1,4 @@
+import os
 import struct
 
 import net_messages
@@ -937,7 +938,8 @@ def data_to_class(data):
         # Multipart messages
         #
         if flags & net_messages.PKT_FLAG_PART:
-            print("PKT_FLAG_PART")
+            if os.environ.get("UADS_DEBUG"):
+                print("PKT_FLAG_PART")
             return Part(data=data)
 
         #
